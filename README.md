@@ -19,8 +19,8 @@ This project provides an interactive 3D visualization of Civilization VI map dat
 - **Tooltip Information**: Detailed information about each tile on hover
 
 ## Authors
-- Charlie Brunold (@charlie-brunold)
-- Lee Stilwell (@lee-64)
+- Charlie Brunold ([@charlie-brunold](https://github.com/charlie-brunold))
+- Lee Stilwell ([@lee-64](https://github.com/lee-64))
 
 ## Getting Started
 
@@ -68,7 +68,7 @@ http://localhost:8000/civ-map-three.html
 
 ### Using Your Own Map Data
 
-Currently, exporting map data is an complicated and poorly implemented process that requires accessing the Civ VI developer console. We're actively exploring solutions to streamline uploading your own map files to the server, but in the meantime feel free to explore creating your own csv files for the service. 
+Currently, exporting map data is an complicated and poorly implemented process that requires accessing the Civ VI developer console. We're actively exploring solutions to streamline uploading your own map files to the server, but in the meantime feel free to explore creating your own CSV files for the service. 
 
 Map data should be placed in the `datasets` directory in CSV format with the following columns:
 - X, Y: Tile coordinates
