@@ -50,7 +50,7 @@ This application uses a simple Python HTTP server to serve the visualization loc
 ```bash
 python csv_to_three_converter.py datasets/your_map.csv civ_map_data.json
 ```
-Alternatively, use one of the sample data files provided in the datasets sub-directory as an example.
+Alternatively, use one of the sample data files provided in the datasets subdirectory as an example.
 
 2. Start a local HTTP server:
 ```bash
@@ -68,7 +68,7 @@ http://localhost:8000/civ-map-three.html
 
 ### Using Your Own Map Data
 
-Currently, exporting map data is an complicated and poorly implemented process that requires accessing the Civ VI developer console. We're actively exploring solutions to streamline uploading your own map files to the server, but in the meantime feel free to explore creating your own CSV files for the service. 
+Currently, exporting map data is a complicated and poorly implemented process that requires accessing the Civ VI developer console. We're actively exploring solutions to streamline uploading your own map files to the service, but in the meantime, feel free to explore creating your own CSV files for the service. 
 
 Map data should be placed in the `datasets` directory in CSV format with the following columns:
 - X, Y: Tile coordinates
