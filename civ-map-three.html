@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Civilization Map 3D Visualization</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+            overflow: hidden;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        .header {
+            background-color: #fff;
+            padding: 10px 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            margin-top: 10px;
+            gap: 10px;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        button.inactive {
+            background-color: #f44336;
+        }
+        
+        button.inactive:hover {
+            background-color: #d32f2f;
+        }
+
+        .control-button {
+    padding: 8px 12px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 5px;
+    font-size: 14px;
+    transition: background-color 0.3s;
+    }
+
+    .control-button:hover {
+        background-color: #45a049;
+    }
+
+    .control-button.inactive {
+        background-color: #f44336;
+    }
+
+    .control-button.inactive:hover {
+        background-color: #d32f2f;
+    }
+        
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+        
+        .tier-filters {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        #map-container {
+            flex-grow: 1;
+            position: relative;
+            background-color: black; /* Add background color to see if container is visible */
+        }
+        
+        .tooltip {
+            position: absolute;
+            visibility: hidden;
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            pointer-events: none;
+            max-width: 250px;
+            z-index: 100;
+            font-size: 14px;
+        }
+        
+        .tooltip h4 {
+            margin: 0 0 5px 0;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+        
+        .tooltip p {
+            margin: 5px 0;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-width: 200px;
+            max-height: 60vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        
+        .legend-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .legend h3 {
+            margin: 0;
+            font-size: 16px;
+        }
+        
+        .legend-toggle {
+            cursor: pointer;
+            color: #4CAF50;
+            font-size: 12px;
+        }
+        
+        .legend-section {
+            margin-bottom: 15px;
+        }
+        
+        .legend-section h4 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            margin-right: 10px;
+            border: 1px solid #ccc;
+        }
+        
+        .tier-symbol {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-weight: bold;
+            border-radius: 50%;
+            font-size: 10px;
+        }
+        
+        /* Tier-specific colors */
+        .tier-S { background-color: #ffcc00; color: black; }
+        .tier-A { background-color: #ff8800; color: black; }
+        .tier-B { background-color: #66cc66; color: black; }
+        .tier-C { background-color: #6699cc; color: black; }
+        .tier-D { background-color: #cccccc; color: black; }
+        .tier-E { background-color: #999999; color: black; }
+        .tier-F { background-color: #666666; color: white; }
+        
+        .error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Civilization 3D Map Visualization</h1>
+            <div class="controls">
+                <div class="control-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="toggle-tier-labels" checked>
+                        Show Tier Labels
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="toggle-resources" checked>
+                        Show Resources
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="toggle-elevation" checked>
+                        Show Elevation
+                    </label>
+                    <label>
+                        <input type="checkbox" id="toggle-histogram">
+                        Show Score Histogram
+                    </label>
+                    <div class="slider-control">
+                        <label for="histogram-scale">Histogram Height: </label>
+                        <input type="range" id="histogram-scale" min="0.01" max="0.1" step="0.01" value="0.05">
+                    </div>
+                    <button id="highlight-top-tiles">Highlight Top Tiles</button>
+                </div>
+                
+                <button id="toggle-all-tiers" class="control-button">Select All Tiers</button>
+
+                <div class="tier-filters">
+                    <span>Filter Tiers:</span>
+                    <label><input type="checkbox" class="tier-checkbox" value="S" checked> S</label>
+                    <label><input type="checkbox" class="tier-checkbox" value="A" checked> A</label>
+                    <label><input type="checkbox" class="tier-checkbox" value="B" checked> B</label>
+                    <label><input type="checkbox" class="tier-checkbox" value="C" checked> C</label>
+                    <label><input type="checkbox" class="tier-checkbox" value="D" checked> D</label>
+                    <label><input type="checkbox" class="tier-checkbox" value="E" checked> E</label>
+                    <label><input type="checkbox" class="tier-checkbox" value="F" checked> F</label>
+                </div>
+            </div>
+        </div>
+        
+        <div id="map-container">
+            <!-- Three.js canvas will be inserted here -->
+            <div id="tooltip" class="tooltip"></div>
+        </div>
+        
+        <div class="legend">
+            <div class="legend-header">
+                <h3>Legend</h3>
+                <span class="legend-toggle" id="legend-toggle">Hide</span>
+            </div>
+            
+            <div class="legend-content">
+                <div class="legend-section">
+                    <h4>Terrain Types</h4>
+                    <div id="terrain-legend">
+                        <!-- Terrain legend items will be inserted here -->
+                    </div>
+                </div>
+                
+                <div class="legend-section">
+                    <h4>Resource Types</h4>
+                    <div id="resource-legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #9c27b0; border-radius: 50%;"></div>
+                            <span>Luxury</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #f44336; border-radius: 50%;"></div>
+                            <span>Strategic</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #4caf50; border-radius: 50%;"></div>
+                            <span>Bonus</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="legend-section">
+                    <h4>Tile Score Tiers</h4>
+                    <div id="tier-legend">
+                        <div class="legend-item">
+                            <div class="tier-symbol tier-S">S</div>
+                            <span>Top 5% (Exceptional)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="tier-symbol tier-A">A</div>
+                            <span>85%-95% (Excellent)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="tier-symbol tier-B">B</div>
+                            <span>65%-85% (Very Good)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="tier-symbol tier-C">C</div>
+                            <span>35%-65% (Average)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="tier-symbol tier-D">D</div>
+                            <span>15%-35% (Below Average)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="tier-symbol tier-E">E</div>
+                            <span>5%-15% (Poor)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="tier-symbol tier-F">F</div>
+                            <span>Bottom 5% (Very Poor)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Debug info div -->
+    <div id="debug-info" style="position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 5px; font-family: monospace; max-width: 400px; z-index: 1000; display: none;">
+        <h3>Debug Info</h3>
+        <div id="debug-content"></div>
+    </div>
+
+    <!-- Load Three.js libraries from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <!-- Load data converter utility -->
+    <script>
+        // Enable debug mode
+        const debug = false;
+        
+        function log(message, obj) {
+            console.log(message, obj);
+            
+            if (debug) {
+                const debugContent = document.getElementById('debug-content');
+                const debugInfo = document.getElementById('debug-info');
+                
+                if (debugContent && debugInfo) {
+                    debugInfo.style.display = 'block';
+                    
+                    const line = document.createElement('div');
+                    line.textContent = typeof obj !== 'undefined' 
+                        ? `${message} ${typeof obj === 'object' ? JSON.stringify(obj).substring(0, 100) + '...' : obj}`
+                        : message;
+                    
+                    // Limit number of lines
+                    if (debugContent.children.length > 20) {
+                        debugContent.removeChild(debugContent.firstChild);
+                    }
+                    
+                    debugContent.appendChild(line);
+                }
+            }
+        }
+    
+        // Initialize the legend toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            log('DOM content loaded');
+            
+            const legendToggle = document.getElementById('legend-toggle');
+            const legendContent = document.querySelector('.legend-content');
+            
+            // Set up legend toggle functionality
+            if (legendToggle && legendContent) {
+                legendToggle.addEventListener('click', function() {
+                    if (legendContent.style.display === 'none') {
+                        legendContent.style.display = 'block';
+                        legendToggle.textContent = 'Hide';
+                    } else {
+                        legendContent.style.display = 'none';
+                        legendToggle.textContent = 'Show';
+                    }
+                });
+            }
+            
+            // Populate terrain legend
+            const terrainColors = {
+                'TERRAIN_OCEAN': '#1a5f9e',       // Deeper blue
+                'TERRAIN_COAST': '#4da6ff',       // Brighter blue
+                'TERRAIN_PLAINS': '#e8d292',      // Slightly lighter tan
+                'TERRAIN_GRASS': '#8bc34a',       // Modern green
+                'TERRAIN_GRASS_HILLS': '#689f38', // Darker green
+                'TERRAIN_DESERT_HILLS': '#ffd54f', // Warmer yellow
+                'TERRAIN_TUNDRA': '#e0e0e0',      // Lighter gray
+                'TERRAIN_TUNDRA_HILLS': '#bdbdbd', // Medium gray
+                'TERRAIN_SNOW': '#f5f5f5',        // Off-white
+                'TERRAIN_DESERT': '#ffc107'        // Amber
+            };
+            
+            const terrainLegend = document.getElementById('terrain-legend');
+            
+            // Format terrain name for display
+            function formatTerrainName(terrain) {
+                return terrain
+                    .replace('TERRAIN_', '')
+                    .split('_')
+                    .map(word => word.charAt(0) + word.slice(1).toLowerCase())
+                    .join(' ');
+            }
+            
+            // Add entries for common terrain types
+            if (terrainLegend) {
+                Object.entries(terrainColors).forEach(([terrain, color]) => {
+                    const item = document.createElement('div');
+                    item.className = 'legend-item';
+                    
+                    const colorBox = document.createElement('div');
+                    colorBox.className = 'legend-color';
+                    colorBox.style.backgroundColor = color;
+                    
+                    const label = document.createElement('span');
+                    label.textContent = formatTerrainName(terrain);
+                    
+                    item.appendChild(colorBox);
+                    item.appendChild(label);
+                    terrainLegend.appendChild(item);
+                });
+            }
+            
+            // Check for Three.js
+            if (typeof THREE === 'undefined') {
+                log('ERROR: Three.js library not loaded');
+                document.getElementById('map-container').innerHTML = `
+                    <div class="error-message">
+                        <h3>Error: Three.js Not Loaded</h3>
+                        <p>The Three.js library could not be loaded. Check your internet connection and try again.</p>
+                    </div>
+                `;
+            } else {
+                log('Three.js library loaded successfully');
+            }
+        });
+    </script>
+    
+    <!-- Load main visualization script -->
+    <script src="civ-map-three.js"></script>
+    
+    <!-- Diagnostic script to check data loading -->
+    <script>
+        // Wait for everything to load, then try to load data directly
+        window.addEventListener('load', function() {
+            log('Window loaded, checking for map data...');
+            
+            // Check if Three.js exists
+            if (typeof THREE === 'undefined') {
+                log('ERROR: Three.js library not loaded after window load');
+                return;
+            }
+            
+            // Try to load the data file directly to verify it exists
+            fetch('civ_map_data.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    log('Successfully loaded map data from fetch', {
+                        tiles: data.tiles.length,
+                        metadata: data.metadata
+                    });
+                })
+                .catch(error => {
+                    log('Error loading map data:', error.message);
+                    document.getElementById('map-container').innerHTML += `
+                        <div class="error-message">
+                            <h3>Error Loading Map Data</h3>
+                            <p>${error.message}</p>
+                            <p>Please ensure that civ_map_data.json exists and is valid JSON.</p>
+                        </div>
+                    `;
+                });
+        });
+    </script>
+</body>
+</html>

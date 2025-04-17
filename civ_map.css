@@ -1,0 +1,213 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+h1 {
+    text-align: center;
+    color: #333;
+    margin-top: 0;
+}
+
+.controls {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.zoom-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.filter-controls {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.tier-filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tier-filters label {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+button {
+    padding: 8px 15px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+button.inactive {
+    background-color: #f44336;
+}
+
+button.inactive:hover {
+    background-color: #d32f2f;
+}
+
+input[type="checkbox"] {
+    margin-right: 4px;
+}
+
+#map-container {
+    position: relative;
+    width: 100%;
+    height: 650px;
+    background-color: #d0e6f9;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+#hex-grid {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+/* Invisible interaction hexagons */
+.interaction-hex {
+    pointer-events: all;
+    cursor: pointer;
+    opacity: 0;
+}
+
+/* Canvas styling */
+#hex-grid canvas {
+    display: block;
+}
+
+/* Resource marker styling */
+.resource-marker {
+    stroke: #fff;
+    stroke-width: 1;
+}
+
+/* Tier label styling */
+.tier-label {
+    font-weight: bold;
+    font-size: 12px;
+    pointer-events: none;
+    text-anchor: middle;
+    dominant-baseline: central;
+    text-shadow: 
+        -1px -1px 0 #fff,
+        1px -1px 0 #fff,
+        -1px 1px 0 #fff,
+        1px 1px 0 #fff;
+}
+
+/* Tooltip styling */
+.tooltip {
+    position: absolute;
+    visibility: hidden;
+    background-color: rgba(255, 255, 255, 0.95);
+    padding: 10px;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    pointer-events: none;
+    max-width: 250px;
+    z-index: 100;
+    font-size: 14px;
+}
+
+.tooltip h4 {
+    margin: 0 0 5px 0;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
+}
+
+.tooltip p {
+    margin: 5px 0;
+}
+
+/* Legend styling */
+.legend {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.legend h3 {
+    margin-top: 0;
+    text-align: center;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 10px;
+}
+
+.legend-section {
+    margin-bottom: 15px;
+}
+
+.legend-section h4 {
+    margin: 0 0 10px 0;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.legend-color {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+    border: 1px solid #333;
+}
+
+.tier-legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.tier-symbol {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 10px;
+    font-weight: bold;
+    border-radius: 50%;
+}
+
+/* Tier-specific colors */
+.tier-S { background-color: #ffcc00; color: black; }
+.tier-A { background-color: #ff8800; color: black; }
+.tier-B { background-color: #66cc66; color: black; }
+.tier-C { background-color: #6699cc; color: black; }
+.tier-D { background-color: #cccccc; color: black; }
+.tier-E { background-color: #999999; color: black; }
+.tier-F { background-color: #666666; color: white; }
