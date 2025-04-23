@@ -4,18 +4,21 @@ A web-based visualization and optimization tool for Civilization VI maps that he
 
 ## Project Overview
 
-This project provides an interactive 3D visualization of Civilization VI map data, allowing players to analyze tile values, resource placements, and terrain features to make better strategic decisions. The visualization uses a configurable scoring system to evaluate tiles and displays this information through interactive elements like tier classifications and a score heatmap.
+This project provides an interactive 3D visualization of Civilization VI map data, allowing players to analyze tile values, resource placements, and terrain features to make better strategic decisions. The visualization uses a configurable scoring system, calculated dynamically within the browser, to evaluate tiles based on user-adjustable weights. Results are displayed through interactive elements like tier classifications and a score heatmap.
 
 ### Features
 
 - **3D Hexagonal Map Visualization**: Renders game maps using Three.js with a flat-topped hex layout, including terrain, features, and elevation.
-- **Configurable Tile Scoring**: A Python script processes map data, calculating tile scores based on yields, resources, appeal, etc., using weights defined in `config.json`.
-- **Tier Classification**: Categorizes tiles from S-tier (exceptional) to F-tier (poor) based on calculated scores.
+- **Dynamic & Configurable Tile Scoring**:
+    - **Initial Data Processing**: A Python script (`csv_to_three_converter.py`) processes raw map data (CSV) using weights from `config.json` to generate the initial `civ_map_data.json`, which includes both raw tile attributes and pre-calculated scores/tiers.
+    - **Live Recalculation**: The frontend JavaScript (`scoring.js`) recalculates tile scores and tiers *in the browser* whenever scoring weights are adjusted via the UI.
+- **Adjustable Scoring Weights**: Interactively change the importance of food, production, gold, appeal, resources, etc., using sliders and predefined presets directly within the visualization. See score updates in real-time.
+- **Tier Classification**: Categorizes tiles from S-tier (exceptional) to F-tier (poor) based on the currently calculated scores.
 - **Score Heatmap**: Optionally overlays a color gradient (blue-cyan-green-yellow-red) onto tiles, representing their calculated normalized score (higher scores are warmer colors).
 - **Resource Markers**: Visual indicators for bonus, luxury, and strategic resources.
 - **Interactive Controls**: Filter tiles by tier, toggle visual elements (labels, resources, elevation, heatmap), highlight top-tier tiles.
 - **Tooltip Information**: Detailed information about each tile appears on hover.
-- **Modular Codebase**: Frontend JavaScript is organized into ES6 modules for better maintainability.
+- **Modular Codebase**: Frontend JavaScript is organized into ES6 modules (`modules/`) for better maintainability, including dedicated modules for UI controls, scoring logic, map elements, and state management.
 
 ## Authors
 - Charlie Brunold ([@charlie-brunold](https://github.com/charlie-brunold))
@@ -25,9 +28,9 @@ This project provides an interactive 3D visualization of Civilization VI map dat
 
 ### Prerequisites
 
-- **Python 3.7+**: Required for processing map data and running the local web server.
+- **Python 3.7+**: Required for the initial map data processing script and running the local web server.
     - **Pandas & NumPy**: Python libraries used for data manipulation. Install via pip: `pip install pandas numpy`
-- **Modern Web Browser**: Chrome, Firefox, Edge, or Safari with WebGL support.
+- **Modern Web Browser**: Chrome, Firefox, Edge, or Safari with WebGL and ES6 Module support.
 
 ### Installation
 
@@ -43,13 +46,14 @@ This project provides an interactive 3D visualization of Civilization VI map dat
 
 ### Running the Application
 
-The visualization requires two main steps: processing map data into the correct JSON format and serving the HTML/JS/CSS files via a local web server.
+The visualization requires two main steps: processing map data into the required JSON format (which includes raw data for the frontend) and serving the HTML/JS/CSS files via a local web server.
 
-1.  **Configure Scoring (Optional):**
-    * Edit the `config.json` file to adjust weights for food, production, resources, appeal, etc., or to change the heatmap colors or tier percentiles.
+1.  **Configure Initial Scoring (Optional - for Python Script):**
+    * Edit the `config.json` file if you want to change the *initial* weights used by the Python script (`csv_to_three_converter.py`) when generating the `civ_map_data.json` file. This affects the scores loaded when the page first opens, before any UI adjustments are made. You can also configure heatmap colors and default tier percentile boundaries here.
 
-2.  **Process Map Data:**
-    * Run the Python script to convert your map data CSV into the `civ_map_data.json` file used by the visualization. Replace `datasets/your_map.csv` with the path to your input file.
+2.  **Process Map Data (Generate `civ_map_data.json`):**
+    * Run the Python script to convert your map data CSV into the `civ_map_data.json` file. This JSON file contains the necessary raw tile data (terrain, features, yields, etc.) *and* the initial scores/tiers calculated using `config.json`.
+    * Replace `datasets/your_map.csv` with the path to your input file.
     ```bash
     python csv_to_three_converter.py datasets/your_map.csv civ_map_data.json
     ```
@@ -60,7 +64,7 @@ The visualization requires two main steps: processing map data into the correct 
     * Sample map data is available in the `datasets/` directory (e.g., `map_tiny_1.csv`).
 
 3.  **Start Local Web Server:**
-    * From the project's root directory (where `civ-map-three.html` is located), start Python's built-in HTTP server. This is necessary for loading JavaScript modules correctly.
+    * From the project's root directory (where `civ-map-three.html` is located), start Python's built-in HTTP server. This is necessary for loading JavaScript modules correctly via `http://`.
     ```bash
     # Make sure you are in the Civ6-Optimizer directory
     python -m http.server 8000
@@ -73,6 +77,7 @@ The visualization requires two main steps: processing map data into the correct 
     http://localhost:8000/civ-map-three.html
     ```
     * (Adjust the port number if you used a different one in step 3).
+    * Once loaded, use the "Scoring Weights" section in the controls panel to adjust weights dynamically and see the map update.
 
 ### Using Your Own Map Data
 
@@ -89,7 +94,9 @@ Map data should be in CSV format. Key columns used by the `csv_to_three_converte
 - `Continent`: Continent identifier string
 - `GoodyHut`: Boolean (`True`/`False`, `1`/`0`)
 
-Place your CSV file (e.g., in the `datasets` directory) and run the conversion script as described in step 2 of "Running the Application".
+Place your CSV file (e.g., in the `datasets` directory) and run the conversion script (Step 2 in "Running the Application") to generate the necessary `civ_map_data.json`.
+
+## Development Roadmap
 
 This project is being developed as part of a BUAD 313 Operations Management class with the following planned features:
 
@@ -116,4 +123,4 @@ This project is licensed under the MIT License - see the `LICENSE` file for deta
 
 ## Acknowledgments
 
-- Professor Vishal Gupta for his support and guidance throughout the duration of our project.
+Thank you to Professor Vishal Gupta for his support and guidance throughout the duration of our project.
