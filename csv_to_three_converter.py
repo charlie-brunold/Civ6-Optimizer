@@ -1,19 +1,20 @@
 """
-CSV to Three.js Map Data Converter (Refactored)
+CSV to Three.js Map Data Converter (Refactored with Logging)
 
 This script converts Civilization map data from CSV format to JSON format
 compatible with the Three.js visualization. It loads configuration from
 'config.json', calculates tile scores based on configurable weights,
-assigns tiers, and outputs a JSON file.
+assigns tiers, outputs a JSON file, and logs runtime status to a log file.
 
 Usage:
-    python csv_to_three_converter_refactored.py <input_csv> <output_json> [config_json]
+    python csv_to_three_converter_refactored_logged.py <input_csv> <output_json> [config_json] [log_file]
 
 Arguments:
     input_csv: Path to the input CSV map data file.
     output_json: Path where the output JSON file will be saved.
     config_json (optional): Path to the configuration JSON file.
                               Defaults to 'config.json' in the same directory.
+    log_file (optional): Path to the log file. Defaults to 'converter.log'.
 """
 
 import pandas as pd
@@ -21,27 +22,50 @@ import numpy as np
 import json
 import sys
 import os
+import logging # Import the logging module
 import traceback
 
 # --- Configuration Loading ---
 
 DEFAULT_CONFIG_FILENAME = 'config.json'
+DEFAULT_LOG_FILENAME = 'converter.log'
+
+def setup_logging(log_file_path):
+    """Configures the logging module."""
+    logging.basicConfig(
+        level=logging.INFO, # Set the minimum logging level
+        format='%(asctime)s - %(levelname)s - %(message)s', # Define log message format
+        filename=log_file_path, # Specify the log file
+        filemode='w' # Overwrite the log file each time ('a' to append)
+    )
+    # Optional: Add a handler to also print logs to console (for debugging)
+    # console_handler = logging.StreamHandler(sys.stdout)
+    # console_handler.setLevel(logging.INFO)
+    # formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    # console_handler.setFormatter(formatter)
+    # logging.getLogger('').addHandler(console_handler)
+    logging.info("Logging setup complete. Outputting to %s", log_file_path)
+
 
 def load_config(config_path):
     """Loads the configuration file."""
     if not os.path.isfile(config_path):
+        logging.error("Configuration file not found: %s", config_path)
         raise FileNotFoundError(f"Configuration file not found: {config_path}")
     try:
         with open(config_path, 'r') as f:
             config = json.load(f)
-        print(f"Configuration loaded successfully from {config_path}")
+        logging.info("Configuration loaded successfully from %s", config_path)
         # Basic validation (can be expanded)
         if 'scoring_weights' not in config or 'yield_values' not in config:
+            logging.error("Config file missing essential keys like 'scoring_weights' or 'yield_values'")
             raise ValueError("Config file missing essential keys like 'scoring_weights' or 'yield_values'")
         return config
     except json.JSONDecodeError as e:
+        logging.error("Error decoding JSON from %s: %s", config_path, e)
         raise ValueError(f"Error decoding JSON from {config_path}: {e}")
     except Exception as e:
+        logging.exception("Failed to load or parse config file %s", config_path)
         raise RuntimeError(f"Failed to load or parse config file {config_path}: {e}")
 
 # --- Data Loading ---
@@ -53,9 +77,9 @@ def load_map_data(filename):
     try:
         # Try standard loading
         df = pd.read_csv(filename)
-        print(f"CSV loaded with headers: {', '.join(df.columns)}")
+        logging.info("CSV loaded with standard method. Headers: %s", ', '.join(df.columns))
     except Exception as e:
-        print(f"Standard loading failed ({e}), trying alternative loading methods...")
+        logging.warning("Standard loading failed (%s), trying alternative loading methods...", e)
         # Define expected columns (can be adjusted)
         column_names = [
             'X', 'Y', 'Terrain', 'Feature', 'Resource', 'ResourceType', 'Continent',
@@ -71,17 +95,20 @@ def load_map_data(filename):
         for i, attempt in enumerate(load_attempts):
             try:
                 df = attempt(filename)
-                print(f"Loaded CSV successfully using attempt {i+1}")
+                logging.info("Loaded CSV successfully using attempt %d", i+1)
                 break
             except Exception as e_att:
-                print(f"Attempt {i+1} failed: {e_att}")
+                logging.warning("Attempt %d failed: %s", i+1, e_att)
 
         if df is None:
-            with open(filename, 'r') as f:
-                lines = f.readlines()
-            print("First few lines of the file:")
-            for i in range(min(5, len(lines))):
-                print(f"Line {i+1}: {lines[i].strip()}")
+            try:
+                with open(filename, 'r') as f:
+                    lines = f.readlines()
+                logging.error("Could not load CSV file '%s' after multiple attempts. First 5 lines:", filename)
+                for i in range(min(5, len(lines))):
+                    logging.error("Line %d: %s", i+1, lines[i].strip())
+            except Exception as read_err:
+                 logging.error("Could not read file '%s' to show first lines: %s", filename, read_err)
             raise ValueError(f"Could not load CSV file '{filename}' after multiple attempts.")
 
     # --- Column Renaming and Type Conversion ---
@@ -90,16 +117,17 @@ def load_map_data(filename):
     potential_y_cols = [col for col in df.columns if 'y' in col.lower()]
 
     if 'X' not in df.columns and potential_x_cols:
-        print(f"Renaming '{potential_x_cols[0]}' to 'X'")
+        logging.info("Renaming '%s' to 'X'", potential_x_cols[0])
         df.rename(columns={potential_x_cols[0]: 'X'}, inplace=True)
     if 'Y' not in df.columns and potential_y_cols:
-        print(f"Renaming '{potential_y_cols[0]}' to 'Y'")
+        logging.info("Renaming '%s' to 'Y'", potential_y_cols[0])
         df.rename(columns={potential_y_cols[0]: 'Y'}, inplace=True)
 
     # Ensure required columns exist
     required_cols = ['X', 'Y', 'Terrain']
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
+        logging.error("Missing required columns after loading/renaming: %s", ', '.join(missing_cols))
         raise ValueError(f"Missing required columns after loading/renaming: {', '.join(missing_cols)}")
 
     # Convert types
@@ -108,7 +136,6 @@ def load_map_data(filename):
     df.dropna(subset=['X', 'Y'], inplace=True) # Drop rows where coordinates couldn't be parsed
     df['X'] = df['X'].astype(int)
     df['Y'] = df['Y'].astype(int)
-
 
     # Convert Appeal to numeric if it exists
     if 'Appeal' in df.columns:
@@ -140,10 +167,10 @@ def load_map_data(filename):
         else:
             df[col] = '' # Add column if it doesn't exist
 
-    print(f"Data loaded and cleaned. Shape: {df.shape}")
+    logging.info("Data loaded and cleaned. Shape: %s", df.shape)
     return df
 
-# --- Scoring Calculations ---
+# --- Scoring Calculations (No logging needed within these pure functions unless debugging) ---
 
 def calculate_base_yields(tile, config):
     """Calculates base yields from terrain and features."""
@@ -284,14 +311,14 @@ def normalize_scores_and_assign_tiers(df, config):
     initial_workable_tiles = df.loc[workable_mask]
 
     if initial_workable_tiles.empty:
-        print("Warning: No workable tiles found for normalization and tier assignment.")
+        logging.warning("No workable tiles found for normalization and tier assignment.")
         df['normalized_score'] = 0.0
         df['tier'] = None
         return df, {} # Return empty thresholds
 
     # Calculate raw scores if not already present (e.g., if called independently)
     if 'raw_score' not in df.columns:
-         print("Calculating raw scores before normalization...")
+         logging.info("Calculating raw scores before normalization...")
          # Use .loc to assign to the original DataFrame
          df.loc[:, 'raw_score'] = df.apply(lambda row: calculate_tile_score(row, config), axis=1)
          # Re-filter after calculating scores
@@ -302,7 +329,7 @@ def normalize_scores_and_assign_tiers(df, config):
     # Normalize based on the average score of *workable* tiles
     avg_score = initial_workable_tiles['raw_score'].mean()
     if avg_score == 0: # Avoid division by zero if all workable scores are 0
-        print("Warning: Average score of workable tiles is 0. Setting normalized scores to 0.")
+        logging.warning("Average score of workable tiles is 0. Setting normalized scores to 0.")
         df.loc[:, 'normalized_score'] = 0.0
     else:
         # Apply normalization to the entire DataFrame, but based on workable average
@@ -315,7 +342,7 @@ def normalize_scores_and_assign_tiers(df, config):
     # --- Tier Assignment ---
     tier_percentiles = config.get('tier_percentiles', {})
     if not tier_percentiles:
-        print("Warning: 'tier_percentiles' not found in config. Skipping tier assignment.")
+        logging.warning("'tier_percentiles' not found in config. Skipping tier assignment.")
         df['tier'] = None
         return df, {}
 
@@ -329,7 +356,7 @@ def normalize_scores_and_assign_tiers(df, config):
     n_tiles = len(sorted_workable)
 
     if n_tiles == 0:
-        print("Warning: No workable tiles with valid scores for tier assignment.")
+        logging.warning("No workable tiles with valid scores for tier assignment.")
         df['tier'] = None
         return df, {}
 
@@ -350,7 +377,8 @@ def normalize_scores_and_assign_tiers(df, config):
         if cutoff_index < last_cutoff_index:
             # This can happen if percentiles are very close and n_tiles is small
             # or if percentile_limit is 0. Skip assigning this tier range.
-            print(f"Skipping tier '{tier}' assignment due to index range ({last_cutoff_index} to {cutoff_index})")
+            logging.warning("Skipping tier '%s' assignment due to index range (%d to %d)",
+                            tier, last_cutoff_index, cutoff_index)
             continue
 
         # Get the score at this percentile cutoff
@@ -377,11 +405,14 @@ def normalize_scores_and_assign_tiers(df, config):
     # Ensure all workable tiles got a tier assigned
     unassigned_mask = workable_mask & df['tier'].isna()
     if unassigned_mask.any():
-        print(f"Warning: {unassigned_mask.sum()} workable tiles were not assigned a tier. Assigning lowest tier.")
+        num_unassigned = unassigned_mask.sum()
+        logging.warning("%d workable tiles were not assigned a tier. Assigning lowest tier.", num_unassigned)
         lowest_tier = sorted_tiers[0][0] if sorted_tiers else 'F'
         df.loc[unassigned_mask, 'tier'] = lowest_tier
 
-    print(f"Tier distribution:\n{df[workable_mask]['tier'].value_counts(dropna=False)}") # Include NaNs in count
+    # Log tier distribution using logging
+    tier_counts = df[workable_mask]['tier'].value_counts(dropna=False)
+    logging.info("Tier distribution:\n%s", tier_counts.to_string()) # Log the distribution
 
     # Return the DataFrame and the calculated score thresholds per tier
     return df, score_thresholds
@@ -394,7 +425,7 @@ def convert_to_three_js_format(df, score_thresholds):
     Convert the DataFrame to the Three.js JSON format, handling NaN values.
     """
     if df.empty:
-        print("Warning: DataFrame is empty. Cannot generate JSON output.")
+        logging.warning("DataFrame is empty. Cannot generate JSON output.")
         return {"metadata": {}, "tiles": []}
 
     # Determine map dimensions
@@ -462,46 +493,53 @@ def convert_to_three_js_format(df, score_thresholds):
 def main():
     # --- Argument Parsing ---
     if len(sys.argv) < 3:
-        print("Usage: python csv_to_three_converter_refactored.py <input_csv> <output_json> [config_json]")
+        # Cannot log here yet as logging is not setup
+        print("Usage: python csv_to_three_converter_refactored_logged.py <input_csv> <output_json> [config_json] [log_file]")
         sys.exit(1)
 
     input_file = sys.argv[1]
     output_file = sys.argv[2]
     config_file = sys.argv[3] if len(sys.argv) > 3 else DEFAULT_CONFIG_FILENAME
+    log_file = sys.argv[4] if len(sys.argv) > 4 else DEFAULT_LOG_FILENAME
+
+    # --- Setup Logging ---
+    setup_logging(log_file)
 
     # Check if input file exists
     if not os.path.isfile(input_file):
-        print(f"Error: Input file '{input_file}' not found.")
+        logging.error("Input file '%s' not found.", input_file)
         sys.exit(1)
 
     try:
         # --- Load Configuration ---
-        print(f"Attempting to load configuration from '{config_file}'...")
+        logging.info("Attempting to load configuration from '%s'...", config_file)
         config = load_config(config_file)
 
         # --- Load Data ---
-        print(f"Loading map data from '{input_file}'...")
+        logging.info("Loading map data from '%s'...", input_file)
         df = load_map_data(input_file)
 
         # --- Calculate Scores ---
-        print("Calculating tile scores...")
+        logging.info("Calculating tile scores...")
         # Apply the scoring function row by row
         df['raw_score'] = df.apply(lambda row: calculate_tile_score(row, config), axis=1)
-        print(f"Raw score calculation complete. Example scores:\n{df['raw_score'].head()}")
+        # Log head of scores for debugging if needed (using DEBUG level)
+        logging.debug("Raw score calculation complete. Example scores:\n%s", df['raw_score'].head().to_string())
 
         # --- Normalize and Assign Tiers ---
-        print("Normalizing scores and assigning tiers...")
+        logging.info("Normalizing scores and assigning tiers...")
         df, score_thresholds = normalize_scores_and_assign_tiers(df, config)
-        print(f"Normalization and tier assignment complete. Tier thresholds: {score_thresholds}")
+        logging.info("Normalization and tier assignment complete. Tier thresholds: %s", score_thresholds)
 
         # --- Convert to Output Format ---
-        print("Converting data to Three.js JSON format...")
+        logging.info("Converting data to Three.js JSON format...")
         result_json = convert_to_three_js_format(df, score_thresholds)
 
         # --- Save Output ---
-        print(f"Saving JSON data to '{output_file}'...")
+        logging.info("Saving JSON data to '%s'...", output_file)
         output_dir = os.path.dirname(output_file)
         if output_dir and not os.path.exists(output_dir):
+             logging.info("Creating output directory: %s", output_dir)
              os.makedirs(output_dir) # Create output directory if it doesn't exist
 
         # Use default_handler to convert potential numpy types during dump
@@ -531,34 +569,32 @@ def main():
             json.dump(result_json, f, indent=2, allow_nan=False, default=default_serializer)
 
 
-        print("-" * 30)
-        print("Conversion complete!")
-        print(f"Output saved to: {output_file}")
-        print(f"Total tiles processed: {len(df)}")
-        print(f"Map dimensions (X): {result_json['metadata']['min_x']} to {result_json['metadata']['max_x']}")
-        print(f"Map dimensions (Y): {result_json['metadata']['min_y']} to {result_json['metadata']['max_y']}")
-        print("-" * 30)
+        logging.info("----------------------------------------")
+        logging.info("Conversion complete!")
+        logging.info("Output saved to: %s", output_file)
+        logging.info("Total tiles processed: %d", len(df))
+        logging.info("Map dimensions (X): %d to %d", result_json['metadata']['min_x'], result_json['metadata']['max_x'])
+        logging.info("Map dimensions (Y): %d to %d", result_json['metadata']['min_y'], result_json['metadata']['max_y'])
+        logging.info("----------------------------------------")
 
     except FileNotFoundError as e:
-        print(f"Error: {e}")
+        logging.error("Error: %s", e)
         sys.exit(1)
     except ValueError as e:
         # Catch the specific JSON compliance error if it still occurs
         if "not JSON compliant" in str(e):
-             print(f"JSON Compliance Error: {e}")
-             print("This usually means a NaN, Infinity, or -Infinity value was not properly converted to null.")
+             logging.error("JSON Compliance Error: %s", e)
+             logging.error("This usually means a NaN, Infinity, or -Infinity value was not properly converted to null.")
              # Add more debugging here if needed, e.g., inspect result_json
         else:
-             print(f"Data Error: {e}")
-        # traceback.print_exc() # Uncomment for detailed stack trace during debugging
+             logging.error("Data Error: %s", e)
+        # logging.exception("ValueError occurred:") # Uncomment for full traceback in log
         sys.exit(1)
     except KeyError as e:
-        print(f"Key Error: Missing expected column or key: {e}")
-        traceback.print_exc()
+        logging.exception("Key Error: Missing expected column or key: %s", e) # Log with traceback
         sys.exit(1)
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-        traceback.print_exc()
+        logging.exception("An unexpected error occurred:") # Log exception with traceback
         sys.exit(1)
 
 if __name__ == "__main__":
