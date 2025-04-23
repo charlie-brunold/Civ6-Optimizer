@@ -1,10 +1,12 @@
 """
-CSV to Three.js Map Data Converter (Refactored with Logging)
+CSV to Three.js Map Data Converter (Refactored with Logging & Raw Data Output)
 
 This script converts Civilization map data from CSV format to JSON format
 compatible with the Three.js visualization. It loads configuration from
 'config.json', calculates tile scores based on configurable weights,
-assigns tiers, outputs a JSON file, and logs runtime status to a log file.
+assigns tiers, and outputs a JSON file containing both the calculated scores/tiers
+AND the raw tile data necessary for potential frontend calculations.
+It also logs runtime status to a log file.
 
 Usage:
     python csv_to_three_converter_refactored_logged.py <input_csv> <output_json> [config_json] [log_file]
@@ -38,12 +40,6 @@ def setup_logging(log_file_path):
         filename=log_file_path, # Specify the log file
         filemode='w' # Overwrite the log file each time ('a' to append)
     )
-    # Optional: Add a handler to also print logs to console (for debugging)
-    # console_handler = logging.StreamHandler(sys.stdout)
-    # console_handler.setLevel(logging.INFO)
-    # formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    # console_handler.setFormatter(formatter)
-    # logging.getLogger('').addHandler(console_handler)
     logging.info("Logging setup complete. Outputting to %s", log_file_path)
 
 
@@ -72,7 +68,8 @@ def load_config(config_path):
 
 def load_map_data(filename):
     """
-    Load map data from a CSV file, attempting various parsing strategies.
+    Load map data from a CSV file, attempting various parsing strategies,
+    cleaning data, and ensuring necessary columns exist.
     """
     try:
         # Try standard loading
@@ -142,6 +139,11 @@ def load_map_data(filename):
         # Handle potential string representations before converting
         df['Appeal'] = df['Appeal'].replace({'Breathtaking': 4, 'Charming': 2, 'Average': 0, 'Uninviting': -2, 'Disgusting': -4}, regex=False)
         df['Appeal'] = pd.to_numeric(df['Appeal'], errors='coerce') # Coerce remaining non-numeric to NaN
+        # Store the original appeal value before potential NA filling for raw output
+        df['raw_appeal'] = df['Appeal'].copy() # Store original appeal value
+    else:
+        df['Appeal'] = np.nan # Ensure column exists
+        df['raw_appeal'] = np.nan # Ensure column exists
 
     # Convert boolean columns (handle various string/numeric representations)
     bool_columns = ['GoodyHut', 'StartingPlot', 'CliffSide']
@@ -156,6 +158,8 @@ def load_map_data(filename):
             # Use .loc here as well
             df.loc[:, col] = df[col].fillna(False)
             df.loc[:, col] = df[col].astype(bool)
+        else:
+             df[col] = False # Add column if it doesn't exist, default to False
 
 
     # Fill NA for other potentially missing string columns
@@ -173,19 +177,27 @@ def load_map_data(filename):
 # --- Scoring Calculations (No logging needed within these pure functions unless debugging) ---
 
 def calculate_base_yields(tile, config):
-    """Calculates base yields from terrain and features."""
+    """
+    Calculates base yields (Food, Production, Gold) from terrain and features,
+    before any weights or bonuses are applied.
+    Input 'tile' is expected to be a Pandas Series or dictionary-like object.
+    Returns a tuple: (food, production, gold).
+    """
     yield_values = config.get('yield_values', {})
     terrain_yield = yield_values.get(tile.get('Terrain', ''), [0, 0, 0])
     feature_yield = yield_values.get(tile.get('Feature', ''), [0, 0, 0])
 
+    # Simple sum of yields from terrain and feature
     total_food = terrain_yield[0] + feature_yield[0]
     total_production = terrain_yield[1] + feature_yield[1]
     total_gold = terrain_yield[2] + feature_yield[2]
 
     return total_food, total_production, total_gold
 
+# --- Functions for calculating weighted score components (remain largely unchanged) ---
+
 def calculate_yield_score(food, production, gold, config):
-    """Calculates the score component from base yields."""
+    """Calculates the score component from base yields using weights."""
     weights = config.get('scoring_weights', {}).get('yields', {})
     food_w = weights.get('food', 1.0)
     prod_w = weights.get('production', 1.0)
@@ -224,33 +236,28 @@ def calculate_fresh_water_bonus(tile, config):
     """Calculates the bonus for fresh water access."""
     bonus_config = config.get('scoring_weights', {}).get('bonuses', {})
     fresh_water_weight = bonus_config.get('fresh_water', 0)
-    # Check if 'Rivers' column exists and is not empty/NaN
+    # Check if 'Rivers' column exists and is not empty/NaN/empty string
     if 'Rivers' in tile and pd.notna(tile['Rivers']) and tile['Rivers'] != '':
          # Could add more sophisticated checks here (e.g., specific river names)
         return fresh_water_weight
     return 0
 
 def calculate_appeal_bonus(tile, config):
-    """Calculates the bonus from tile appeal."""
+    """Calculates the bonus from tile appeal (using the cleaned 'Appeal' column)."""
     if 'Appeal' not in tile or pd.isna(tile['Appeal']):
         return 0
 
     bonus_config = config.get('scoring_weights', {}).get('bonuses', {})
     positive_factor = bonus_config.get('appeal_positive_factor', 0.5)
-    high_value = bonus_config.get('appeal_high_value', 2.0) # Value for string representations
+    # Removed high_value logic as Appeal should be numeric after load_map_data
+    # negative_factor = bonus_config.get('appeal_negative_factor', 0.1) # Optional negative penalty
 
-    try:
-        appeal_value = float(tile['Appeal'])
-        if appeal_value > 0:
-            return appeal_value * positive_factor
-        # Can add penalties for negative appeal if desired
-        # elif appeal_value < 0:
-        #     return appeal_value * negative_factor
-    except (ValueError, TypeError):
-         # Handle potential string values if conversion failed earlier
-         appeal_str = str(tile['Appeal']).lower()
-         if appeal_str in ['good', 'high', 'positive', 'breathtaking', 'charming']:
-             return high_value
+    appeal_value = tile['Appeal'] # Should be numeric or NaN here
+    if appeal_value > 0:
+        return appeal_value * positive_factor
+    # Optional: Add penalty for negative appeal
+    # elif appeal_value < 0:
+    #     return appeal_value * negative_factor # Note: appeal_value is negative
     return 0
 
 
@@ -258,14 +265,17 @@ def calculate_goody_bonus(tile, config):
     """Calculates the bonus for goody huts."""
     bonus_config = config.get('scoring_weights', {}).get('bonuses', {})
     goody_weight = bonus_config.get('goody_hut', 0)
+    # Check the boolean 'GoodyHut' column
     if 'GoodyHut' in tile and tile['GoodyHut'] is True:
         return goody_weight
     return 0
 
-def calculate_tile_score(tile, config):
+def calculate_weighted_tile_score(tile, config):
     """
-    Calculates the overall desirability score for a single tile using config weights.
-    Input 'tile' is expected to be a Pandas Series or dictionary-like object.
+    Calculates the overall weighted desirability score for a single tile using config weights.
+    This function now relies on the pre-calculated base yields stored in the tile/row.
+    Input 'tile' is expected to be a Pandas Series or dictionary-like object
+    containing 'base_food', 'base_production', 'base_gold'.
     """
     # Skip non-workable tiles (Oceans, Ice)
     terrain = tile.get('Terrain', '')
@@ -273,18 +283,20 @@ def calculate_tile_score(tile, config):
     if terrain == 'TERRAIN_OCEAN' or feature == 'FEATURE_ICE':
         return 0
 
-    # 1. Base Yields
-    food, production, gold = calculate_base_yields(tile, config)
+    # 1. Get Base Yields (already calculated)
+    food = tile.get('base_food', 0)
+    production = tile.get('base_production', 0)
+    gold = tile.get('base_gold', 0)
 
-    # 2. Score Components
+    # 2. Calculate Score Components using weights
     yield_score = calculate_yield_score(food, production, gold, config)
     balance_bonus = calculate_balance_bonus(food, production, config)
     resource_bonus = calculate_resource_bonus(tile, config)
     fresh_water_bonus = calculate_fresh_water_bonus(tile, config)
-    appeal_bonus = calculate_appeal_bonus(tile, config)
+    appeal_bonus = calculate_appeal_bonus(tile, config) # Uses cleaned 'Appeal' column
     goody_bonus = calculate_goody_bonus(tile, config)
 
-    # 3. Total Score
+    # 3. Total Weighted Score
     total_score = (
         yield_score +
         balance_bonus +
@@ -300,7 +312,8 @@ def calculate_tile_score(tile, config):
 
 def normalize_scores_and_assign_tiers(df, config):
     """
-    Normalizes scores for workable tiles and assigns tiers based on config percentiles.
+    Normalizes weighted scores for workable tiles and assigns tiers based on config percentiles.
+    Assumes 'weighted_score' column already exists.
     """
     # Identify workable tiles (exclude Ocean and Ice)
     workable_mask = (
@@ -316,25 +329,16 @@ def normalize_scores_and_assign_tiers(df, config):
         df['tier'] = None
         return df, {} # Return empty thresholds
 
-    # Calculate raw scores if not already present (e.g., if called independently)
-    if 'raw_score' not in df.columns:
-         logging.info("Calculating raw scores before normalization...")
-         # Use .loc to assign to the original DataFrame
-         df.loc[:, 'raw_score'] = df.apply(lambda row: calculate_tile_score(row, config), axis=1)
-         # Re-filter after calculating scores
-         initial_workable_tiles = df.loc[workable_mask]
-
-
     # --- Normalization ---
-    # Normalize based on the average score of *workable* tiles
-    avg_score = initial_workable_tiles['raw_score'].mean()
+    # Normalize based on the average *weighted* score of *workable* tiles
+    avg_score = initial_workable_tiles['weighted_score'].mean()
     if avg_score == 0: # Avoid division by zero if all workable scores are 0
-        logging.warning("Average score of workable tiles is 0. Setting normalized scores to 0.")
+        logging.warning("Average weighted score of workable tiles is 0. Setting normalized scores to 0.")
         df.loc[:, 'normalized_score'] = 0.0
     else:
         # Apply normalization to the entire DataFrame, but based on workable average
         # Use .loc for assignment
-        df.loc[:, 'normalized_score'] = np.round((df['raw_score'] / avg_score) * 100)
+        df.loc[:, 'normalized_score'] = np.round((df['weighted_score'] / avg_score) * 100)
 
     # Ensure non-workable tiles have a normalized score of 0 or NaN (optional, 0 might be simpler)
     df.loc[~workable_mask, 'normalized_score'] = 0.0 # Or np.nan
@@ -346,12 +350,11 @@ def normalize_scores_and_assign_tiers(df, config):
         df['tier'] = None
         return df, {}
 
-    # ***** FIX: Re-filter workable_tiles *after* normalized_score is calculated *****
+    # Re-filter workable_tiles *after* normalized_score is calculated
     workable_tiles = df.loc[workable_mask].copy() # Use .copy() to avoid potential SettingWithCopyWarning later
 
     # Sort workable tiles by normalized score to determine ranks
     # Use dropna() in case normalization resulted in NaN for some workable tiles (shouldn't happen with current logic)
-    # Now 'normalized_score' exists in workable_tiles
     sorted_workable = workable_tiles.dropna(subset=['normalized_score']).sort_values('normalized_score')
     n_tiles = len(sorted_workable)
 
@@ -361,8 +364,6 @@ def normalize_scores_and_assign_tiers(df, config):
         return df, {}
 
     # Define tier boundaries based on percentiles
-    # Ensure tiers are processed in a logical order (e.g., F to S)
-    # Sort by percentile value
     sorted_tiers = sorted(tier_percentiles.items(), key=lambda item: item[1])
 
     # Calculate score thresholds for each tier boundary
@@ -370,39 +371,26 @@ def normalize_scores_and_assign_tiers(df, config):
     last_cutoff_index = 0
 
     for tier, percentile_limit in sorted_tiers:
-        # Ensure cutoff_index is calculated based on the actual number of sorted workable tiles
         cutoff_index = min(int(n_tiles * percentile_limit), n_tiles - 1) # Ensure index is within bounds
 
-        # Check if cutoff_index is valid (it might be negative if n_tiles is 0, handled above)
         if cutoff_index < last_cutoff_index:
-            # This can happen if percentiles are very close and n_tiles is small
-            # or if percentile_limit is 0. Skip assigning this tier range.
             logging.warning("Skipping tier '%s' assignment due to index range (%d to %d)",
                             tier, last_cutoff_index, cutoff_index)
             continue
 
         # Get the score at this percentile cutoff
-        # Ensure we access iloc using a valid index relative to sorted_workable
         score_at_cutoff = sorted_workable['normalized_score'].iloc[cutoff_index]
 
-
         # Assign tier to tiles within the percentile range [last_cutoff, current_cutoff]
-        # Get the original indices from the sorted workable DataFrame
         indices_in_tier = sorted_workable.index[last_cutoff_index : cutoff_index + 1] # Inclusive slice
-
-        # Use .loc on the main DataFrame 'df' to assign the tier
         df.loc[indices_in_tier, 'tier'] = tier
 
         # Store threshold information (useful for legend)
-        # Threshold is the *minimum* score required to *enter* the next tier (or max of current)
-        # Convert numpy float types to standard Python float for JSON compatibility
         score_thresholds[tier] = float(score_at_cutoff) if not pd.isna(score_at_cutoff) else None
-
 
         last_cutoff_index = cutoff_index + 1 # Move to the start of the next range
 
-    # Handle potential edge cases (e.g., all scores are the same)
-    # Ensure all workable tiles got a tier assigned
+    # Handle potential edge cases & unassigned tiles
     unassigned_mask = workable_mask & df['tier'].isna()
     if unassigned_mask.any():
         num_unassigned = unassigned_mask.sum()
@@ -410,11 +398,10 @@ def normalize_scores_and_assign_tiers(df, config):
         lowest_tier = sorted_tiers[0][0] if sorted_tiers else 'F'
         df.loc[unassigned_mask, 'tier'] = lowest_tier
 
-    # Log tier distribution using logging
+    # Log tier distribution
     tier_counts = df[workable_mask]['tier'].value_counts(dropna=False)
-    logging.info("Tier distribution:\n%s", tier_counts.to_string()) # Log the distribution
+    logging.info("Tier distribution:\n%s", tier_counts.to_string())
 
-    # Return the DataFrame and the calculated score thresholds per tier
     return df, score_thresholds
 
 
@@ -422,7 +409,8 @@ def normalize_scores_and_assign_tiers(df, config):
 
 def convert_to_three_js_format(df, score_thresholds):
     """
-    Convert the DataFrame to the Three.js JSON format, handling NaN values.
+    Convert the DataFrame to the Three.js JSON format, including raw data
+    and calculated scores/tiers, handling NaN values.
     """
     if df.empty:
         logging.warning("DataFrame is empty. Cannot generate JSON output.")
@@ -434,7 +422,7 @@ def convert_to_three_js_format(df, score_thresholds):
     min_y = int(df['Y'].min())
     max_y = int(df['Y'].max())
 
-    # Create metadata - Ensure thresholds are JSON serializable (handle potential numpy types)
+    # Create metadata - Ensure thresholds are JSON serializable
     serializable_thresholds = {k: (float(v) if pd.notna(v) else None) for k, v in score_thresholds.items()}
     metadata = {
         'min_x': min_x,
@@ -460,20 +448,34 @@ def convert_to_three_js_format(df, score_thresholds):
                 return bool(value)
             # For strings, ensure empty strings become None if desired, else return as is
             if isinstance(value, str) and value == '':
-                 return None # Represent empty strings as null
+                 return None # Represent empty strings as null in JSON
             return value # Return other types (like strings) as is
 
+        # --- Construct Tile Data ---
         tile_data = {
+            # Coordinates
             'x': safe_json_value(record['X'], int),
             'y': safe_json_value(record['Y'], int),
+
+            # Raw Tile Attributes (for potential JS calculation)
             'terrain': safe_json_value(record.get('Terrain')),
             'feature': safe_json_value(record.get('Feature')),
             'resource': safe_json_value(record.get('Resource')),
             'resourcetype': safe_json_value(record.get('ResourceType')),
             'continent': safe_json_value(record.get('Continent')),
-            'rivers': safe_json_value(record.get('Rivers')),
-            'appeal': safe_json_value(record.get('Appeal'), float),
+            'rivers': safe_json_value(record.get('Rivers')), # Raw river info (e.g., '1' or 'RIVER_...')
+            'appeal': safe_json_value(record.get('raw_appeal'), float), # Use the original appeal value
             'goodyhut': safe_json_value(record.get('GoodyHut', False), bool),
+            'startingplot': safe_json_value(record.get('StartingPlot', False), bool),
+            'cliffside': safe_json_value(record.get('CliffSide', False), bool), # Include if present
+
+            # Base Yields (calculated before weighting)
+            'base_food': safe_json_value(record.get('base_food'), int),
+            'base_production': safe_json_value(record.get('base_production'), int),
+            'base_gold': safe_json_value(record.get('base_gold'), int),
+
+            # Calculated Results (from Python script)
+            'weighted_score': safe_json_value(record.get('weighted_score'), float), # Include the raw weighted score
             'normalized_score': safe_json_value(record.get('normalized_score'), float),
             'tier': safe_json_value(record.get('tier'))
         }
@@ -493,7 +495,6 @@ def convert_to_three_js_format(df, score_thresholds):
 def main():
     # --- Argument Parsing ---
     if len(sys.argv) < 3:
-        # Cannot log here yet as logging is not setup
         print("Usage: python csv_to_three_converter_refactored_logged.py <input_csv> <output_json> [config_json] [log_file]")
         sys.exit(1)
 
@@ -519,20 +520,29 @@ def main():
         logging.info("Loading map data from '%s'...", input_file)
         df = load_map_data(input_file)
 
-        # --- Calculate Scores ---
-        logging.info("Calculating tile scores...")
-        # Apply the scoring function row by row
-        df['raw_score'] = df.apply(lambda row: calculate_tile_score(row, config), axis=1)
-        # Log head of scores for debugging if needed (using DEBUG level)
-        logging.debug("Raw score calculation complete. Example scores:\n%s", df['raw_score'].head().to_string())
+        # --- Calculate Base Yields (NEW STEP) ---
+        logging.info("Calculating base yields...")
+        # Apply the base yield calculation row by row and store results
+        yield_results = df.apply(lambda row: calculate_base_yields(row, config), axis=1)
+        df['base_food'] = yield_results.apply(lambda x: x[0])
+        df['base_production'] = yield_results.apply(lambda x: x[1])
+        df['base_gold'] = yield_results.apply(lambda x: x[2])
+        logging.debug("Base yield calculation complete. Example yields:\n%s", df[['base_food', 'base_production', 'base_gold']].head().to_string())
+
+        # --- Calculate Weighted Scores ---
+        logging.info("Calculating weighted tile scores...")
+        # Apply the weighted scoring function row by row
+        # This function now uses the pre-calculated base yields
+        df['weighted_score'] = df.apply(lambda row: calculate_weighted_tile_score(row, config), axis=1)
+        logging.debug("Weighted score calculation complete. Example scores:\n%s", df['weighted_score'].head().to_string())
 
         # --- Normalize and Assign Tiers ---
         logging.info("Normalizing scores and assigning tiers...")
-        df, score_thresholds = normalize_scores_and_assign_tiers(df, config)
+        df, score_thresholds = normalize_scores_and_assign_tiers(df, config) # Uses 'weighted_score' now
         logging.info("Normalization and tier assignment complete. Tier thresholds: %s", score_thresholds)
 
         # --- Convert to Output Format ---
-        logging.info("Converting data to Three.js JSON format...")
+        logging.info("Converting data to Three.js JSON format (including raw data)...")
         result_json = convert_to_three_js_format(df, score_thresholds)
 
         # --- Save Output ---
@@ -549,23 +559,19 @@ def main():
                                 np.uint16, np.uint32, np.uint64)):
                 return int(obj)
             elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64)):
-                 # Check for NaN specifically here before converting
                  if np.isnan(obj):
                      return None # Convert NaN to None (JSON null)
                  return float(obj)
-            elif isinstance(obj, (np.ndarray,)): # Handle arrays if any slip through
+            elif isinstance(obj, (np.ndarray,)):
                 return obj.tolist()
             elif isinstance(obj, (np.bool_)):
                 return bool(obj)
             elif pd.isna(obj): # Catch pandas NaT or other NA types
                 return None
-            # Let the base default method raise the TypeError
             raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
 
 
         with open(output_file, 'w') as f:
-            # Pass allow_nan=False to enforce standard JSON compliance
-            # The conversion logic should handle NaNs before they reach dump
             json.dump(result_json, f, indent=2, allow_nan=False, default=default_serializer)
 
 
@@ -581,14 +587,11 @@ def main():
         logging.error("Error: %s", e)
         sys.exit(1)
     except ValueError as e:
-        # Catch the specific JSON compliance error if it still occurs
         if "not JSON compliant" in str(e):
              logging.error("JSON Compliance Error: %s", e)
              logging.error("This usually means a NaN, Infinity, or -Infinity value was not properly converted to null.")
-             # Add more debugging here if needed, e.g., inspect result_json
         else:
              logging.error("Data Error: %s", e)
-        # logging.exception("ValueError occurred:") # Uncomment for full traceback in log
         sys.exit(1)
     except KeyError as e:
         logging.exception("Key Error: Missing expected column or key: %s", e) # Log with traceback

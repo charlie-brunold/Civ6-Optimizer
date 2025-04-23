@@ -137,3 +137,21 @@ export function log(message, obj) {
         }
     }
 }
+
+/**
+ * Debounces a function, ensuring it's only called after a certain period of inactivity.
+ * @param {Function} func - The function to debounce.
+ * @param {number} wait - The debounce delay in milliseconds.
+ * @returns {Function} The debounced function.
+ */
+export function debounce(func, wait) { // Add the 'export' keyword here
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
