@@ -4,7 +4,7 @@ A web-based visualization and optimization tool for Civilization VI maps that he
 
 ## Project Overview
 
-This project provides an interactive 3D visualization of Civilization VI map data, allowing players to analyze tile values, resource placements, and terrain features to make better strategic decisions. The visualization uses a configurable scoring system, calculated dynamically within the browser, to evaluate tiles based on user-adjustable weights. Results are displayed through interactive elements like tier classifications and a score heatmap.
+This project, developed for **BUAD 313 Operations Management at USC**, is a web-based tool designed to help Civilization VI players optimize their gameplay. It provides an interactive 3D map visualization with dynamically calculated tile scores, allowing users to analyze potential settlement locations and identify the most advantageous placements for cities and districts based on customizable scoring weights.
 
 ### Features
 
