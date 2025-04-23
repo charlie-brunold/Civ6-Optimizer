@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Civilization Map Visualization</title>
+    <link rel="stylesheet" href="civ_map.css">
+    <!-- Load D3.js from CDN -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Civilization Map Analysis</h1>
+        
+        <div class="controls">
+            <div class="zoom-controls">
+                <button id="zoom-in">Zoom In</button>
+                <button id="zoom-out">Zoom Out</button>
+                <button id="reset">Reset View</button>
+            </div>
+            
+            <div class="filter-controls">
+                <label>
+                    <input type="checkbox" id="toggle-tier-labels" checked>
+                    Show Tier Labels
+                </label>
+                
+                <div class="tier-filters">
+                    <span>Filter Tiers:</span>
+                    <label><input type="checkbox" class="tier-checkbox" value="S" checked> S</label>
+                    <label><input type="checkbox" class="tier-checkbox" value="A" checked> A</label>
+                    <label><input type="checkbox" class="tier-checkbox" value="B" checked> B</label>
+                    <label><input type="checkbox" class="tier-checkbox" value="C" checked> C</label>
+                    <label><input type="checkbox" class="tier-checkbox" value="D" checked> D</label>
+                    <label><input type="checkbox" class="tier-checkbox" value="E" checked> E</label>
+                    <label><input type="checkbox" class="tier-checkbox" value="F" checked> F</label>
+                </div>
+                
+                <button id="highlight-top-tiles">Highlight Top Tiles</button>
+            </div>
+        </div>
+        
+        <div id="map-container">
+            <div id="hex-grid"></div>
+            <div id="tooltip" class="tooltip"></div>
+        </div>
+        
+        <script>
+            // Ensure proper sizing of the map container
+            window.addEventListener('resize', function() {
+                const container = document.getElementById('hex-grid');
+                const canvas = container.querySelector('canvas');
+                const svg = container.querySelector('svg');
+                
+                if (canvas && svg) {
+                    // Update width and height
+                    canvas.width = container.clientWidth;
+                    canvas.height = container.clientHeight;
+                    
+                    svg.setAttribute('width', container.clientWidth);
+                    svg.setAttribute('height', container.clientHeight);
+                    
+                    // Trigger redraw if a global redraw function exists
+                    if (typeof drawCurrentView === 'function') {
+                        drawCurrentView();
+                    }
+                }
+            });
+        </script>
+        
+        <div class="legend">
+            <h3>Legend</h3>
+            <div class="legend-section">
+                <h4>Terrain Types</h4>
+                <div id="terrain-legend"></div>
+            </div>
+            <div class="legend-section">
+                <h4>Resource Types</h4>
+                <div id="resource-legend"></div>
+            </div>
+            <div class="legend-section">
+                <h4>Tile Score Tiers</h4>
+                <div id="tier-legend"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="civ_map.js"></script>
+</body>
+</html>
