@@ -1,0 +1,69 @@
+{
+    "yield_values": {
+      "TERRAIN_GRASS": [2, 0, 0],
+      "TERRAIN_GRASS_HILLS": [2, 1, 0],
+      "TERRAIN_PLAINS": [1, 1, 0],
+      "TERRAIN_PLAINS_HILLS": [1, 2, 0],
+      "TERRAIN_DESERT": [0, 0, 0],
+      "TERRAIN_DESERT_HILLS": [0, 1, 0],
+      "TERRAIN_TUNDRA": [1, 0, 0],
+      "TERRAIN_TUNDRA_HILLS": [1, 1, 0],
+      "TERRAIN_COAST": [1, 0, 1],
+      "TERRAIN_OCEAN": [1, 0, 0],
+      "TERRAIN_SNOW": [0, 0, 0],
+      "TERRAIN_SNOW_HILLS": [0, 1, 0],
+      "FEATURE_FOREST": [0, 1, 0],
+      "FEATURE_JUNGLE": [1, 0, 0],
+      "FEATURE_MARSH": [1, 0, 0],
+      "FEATURE_FLOODPLAINS": [3, 0, 0],
+      "FEATURE_OASIS": [3, 0, 1],
+      "FEATURE_REEF": [1, 1, 0]
+    },
+    "resource_values": {
+      "Luxury": {
+        "RESOURCE_WINE": 3.0, "RESOURCE_FURS": 3.0, "RESOURCE_SILK": 3.0,
+        "RESOURCE_SILVER": 3.0, "RESOURCE_SUGAR": 3.0, "RESOURCE_PEARLS": 3.0,
+        "RESOURCE_WHALES": 3.0, "RESOURCE_TRUFFLES": 3.0, "RESOURCE_IVORY": 3.0,
+        "RESOURCE_COCOA": 3.0, "RESOURCE_COFFEE": 3.0, "RESOURCE_TEA": 3.0,
+        "RESOURCE_TOBACCO": 3.0, "RESOURCE_CITRUS": 3.0, "RESOURCE_SALT": 3.0
+      },
+      "Bonus": {
+        "RESOURCE_BANANAS": 1.5, "RESOURCE_CATTLE": 1.5, "RESOURCE_COPPER": 1.5,
+        "RESOURCE_CRABS": 1.5, "RESOURCE_DEER": 1.5, "RESOURCE_FISH": 1.5,
+        "RESOURCE_MAIZE": 1.5, "RESOURCE_RICE": 1.5, "RESOURCE_SHEEP": 1.5,
+        "RESOURCE_STONE": 1.5, "RESOURCE_WHEAT": 1.5
+      },
+      "Strategic": {
+        "RESOURCE_HORSES": 1.0, "RESOURCE_IRON": 1.0, "RESOURCE_NITER": 0.5,
+        "RESOURCE_COAL": 0.5, "RESOURCE_OIL": 0.5, "RESOURCE_ALUMINUM": 0.5,
+        "RESOURCE_URANIUM": 0.5
+      }
+    },
+    "scoring_weights": {
+      "yields": {
+        "food": 2.0,
+        "production": 1.0,
+        "gold": 0.5
+      },
+      "bonuses": {
+        "balance_factor": 1.5,
+        "resource_luxury_factor": 1.0,
+        "resource_bonus_factor": 1.0,
+        "resource_strategic_factor": 1.0,
+        "fresh_water": 3.0,
+        "appeal_positive_factor": 0.5,
+        "appeal_high_value": 2.0,
+        "goody_hut": 2.0
+      }
+    },
+    "tier_percentiles": {
+      "F": 0.05,
+      "E": 0.15,
+      "D": 0.35,
+      "C": 0.65,
+      "B": 0.85,
+      "A": 0.95,
+      "S": 1.00
+    }
+  }
+  
