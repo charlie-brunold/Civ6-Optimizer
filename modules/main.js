@@ -3,109 +3,159 @@
  * Entry point for the Civilization Map Visualization.
  * Loads data, initializes modules, and starts the application.
  */
-import * as THREE from 'three'; // Still needed if used directly here, otherwise remove
+import * as THREE from 'three'; // Import THREE itself
+// Note: OrbitControls is loaded via import map in HTML, but THREE needs direct import
+
+// Import necessary modules
 import { config } from './config.js';
 import { initScene } from './sceneSetup.js';
 import { createMapVisualization } from './mapElements.js';
 import { initInteraction } from './interaction.js';
 import { initUIControls } from './uiControls.js';
 import { startAnimationLoop } from './animation.js';
-import { log } from './utils.js';
+import { log, formatTerrainName } from './utils.js'; // Import formatTerrainName
+import { loadMapData as fetchData } from './dataLoader.js'; // Rename imported function
 
 // --- Constants ---
 const MAP_DATA_URL = 'civ_map_data.json'; // Path to your generated JSON data
 
+// --- DOM Elements (for loading bar) ---
+let loadingOverlay, progressBar, loadingText, loadingError;
+
+// --- Loading Manager ---
+const loadingManager = new THREE.LoadingManager();
+
+loadingManager.onStart = function (url, itemsLoaded, itemsTotal) {
+    log('Loading started...');
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden'); // Ensure visible
+    if (progressBar) progressBar.style.width = '0%';
+    if (loadingText) loadingText.textContent = 'Loading Map Data... 0%';
+    if (loadingError) loadingError.style.display = 'none';
+};
+
+loadingManager.onLoad = function () {
+    log('Loading complete!');
+    if (loadingOverlay) {
+        // Add 'hidden' class to trigger fade-out transition
+        loadingOverlay.classList.add('hidden');
+        // Optional: Set display none after transition completes, though opacity 0 might be enough
+        // setTimeout(() => { loadingOverlay.style.display = 'none'; }, 500); // Match CSS transition duration
+    }
+};
+
+loadingManager.onProgress = function (url, itemsLoaded, itemsTotal) {
+    const progress = itemsTotal > 0 ? Math.round((itemsLoaded / itemsTotal) * 100) : 0;
+    log(`Loading progress: ${progress}% (${itemsLoaded}/${itemsTotal})`);
+    if (progressBar) progressBar.style.width = progress + '%';
+    if (loadingText) loadingText.textContent = `Loading Map Data... ${progress}%`;
+};
+
+loadingManager.onError = function (url) {
+    log(`Error loading: ${url}`);
+    if (loadingText) loadingText.textContent = 'Error loading map data!';
+    if (loadingError) {
+        loadingError.textContent = `Failed to load resource: ${url}. Please check the file path and network connection.`;
+        loadingError.style.display = 'block';
+    }
+    // Keep overlay visible to show the error
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+    if (progressBar) progressBar.style.width = '0%'; // Reset progress bar on error
+};
+
+
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
     log("DOM content loaded. Initializing application...");
+
+    // Get loading bar elements
+    loadingOverlay = document.getElementById('loading-overlay');
+    progressBar = document.getElementById('progress-bar');
+    loadingText = document.getElementById('loading-text');
+    loadingError = document.getElementById('loading-error');
 
     const mapContainer = document.getElementById('map-container');
 
     if (!mapContainer) {
         console.error("Fatal Error: Map container element not found.");
         log("Error: #map-container not found in the DOM.");
-        // Display error message to the user
-        document.body.innerHTML = '<div style="padding: 20px; text-align: center; color: red;">Error: Could not find the map container element (#map-container). The visualization cannot start.</div>';
+        document.body.innerHTML = '<div class="error-message">Error: Could not find the map container element (#map-container).</div>';
+        if(loadingOverlay) loadingOverlay.style.display = 'none'; // Hide loading if container fails
         return;
     }
 
-    // 1. Initialize Scene, Camera, Renderer, Controls
-    initScene(mapContainer);
+    // --- Start Loading Process ---
+    // Manually signal the start to the LoadingManager because we are using fetch externally
+    loadingManager.itemStart(MAP_DATA_URL);
 
-    // 2. Initialize UI Controls (reads initial config state)
-    initUIControls();
+    try {
+        // 1. Initialize Scene, Camera, Renderer, Controls
+        // These don't depend on map data, so initialize early
+        initScene(mapContainer);
 
-    // 3. Initialize Interaction Handlers
-    initInteraction();
+        // 2. Initialize UI Controls (reads initial config state)
+        initUIControls();
 
-    // 4. Load Map Data and Create Visualization
-    loadMapData(MAP_DATA_URL)
-        .then(mapData => {
-            if (mapData) {
-                createMapVisualization(mapData); // Creates hexes, labels, etc.
-                startAnimationLoop(); // Start rendering loop only after data is loaded
-                log("Application initialized successfully.");
-            } else {
-                throw new Error("Map data processing failed."); // Throw error if data is null/undefined
-            }
-        })
-        .catch(error => {
-            log('Error during application initialization:', error);
-            console.error('Initialization failed:', error);
-            // Display error message in the container
-             mapContainer.innerHTML = `
-                <div class="error-message" style="position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); text-align: center;">
-                    <h3>Initialization Error</h3>
-                    <p>Could not load or process map data:</p>
-                    <p style="color: red; font-family: monospace; font-size: 12px; margin-top: 10px;">${error.message}</p>
-                    <p style="margin-top: 15px;">Please ensure '${MAP_DATA_URL}' exists, is valid JSON, and the server is running if applicable.</p>
-                </div>`;
-        });
+        // 3. Initialize Interaction Handlers
+        initInteraction();
 
-     // 5. Initial Legend Setup (if needed beyond UI controls)
-     setupLegend(); // Populate dynamic parts of the legend
+        // 4. Fetch Map Data (using external dataLoader) and Create Visualization
+        fetchData(MAP_DATA_URL)
+            .then(mapData => {
+                if (mapData) {
+                    // Basic validation
+                    if (!mapData.tiles || !mapData.metadata) {
+                        throw new Error("Invalid map data format received (missing tiles or metadata).");
+                    }
+                    log('Map data loaded successfully:', { tiles: mapData.tiles.length, metadata: mapData.metadata });
+                    createMapVisualization(mapData); // Creates hexes, labels, etc.
+                    startAnimationLoop(); // Start rendering loop
+                    log("Application initialized successfully.");
+                    // Manually signal the end of loading for this item
+                    loadingManager.itemEnd(MAP_DATA_URL);
+                } else {
+                    // If fetchData returns null, treat it as an error
+                    throw new Error("Map data processing failed (loader returned null).");
+                }
+            })
+            .catch(error => {
+                // Handle errors during fetch or processing
+                log('Error during data loading or visualization creation:', error);
+                console.error('Initialization failed:', error);
+                // Manually signal an error to the LoadingManager
+                loadingManager.itemError(MAP_DATA_URL);
+                // Display error message in the loading overlay
+                if (loadingText) loadingText.textContent = 'Initialization Error!';
+                if (loadingError) {
+                    loadingError.textContent = `Failed to load or process map data: ${error.message}`;
+                    loadingError.style.display = 'block';
+                }
+                // Keep the loading overlay visible
+                if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+            });
 
+        // 5. Initial Legend Setup (can run concurrently or after data load)
+        setupLegend(); // Populate dynamic parts of the legend
+
+    } catch (initError) {
+        // Catch synchronous errors during initialization (e.g., in initScene)
+        log('Critical initialization error:', initError);
+        console.error('Critical Initialization Error:', initError);
+        loadingManager.itemError(MAP_DATA_URL); // Signal error if loading was started
+         if (loadingText) loadingText.textContent = 'Critical Error!';
+         if (loadingError) {
+            loadingError.textContent = `Failed to initialize viewer: ${initError.message}`;
+            loadingError.style.display = 'block';
+         }
+         if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+    }
 });
 
 
 /**
- * Loads map data from the specified URL.
- * @param {string} url - The URL of the map data JSON file.
- * @returns {Promise<object|null>} A promise that resolves with the map data object, or null on error.
- */
-async function loadMapData(url) {
-    log(`Loading map data from: ${url}`);
-    try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            // Try to get more specific error text if available
-            let errorText = response.statusText;
-            try {
-                const errorData = await response.json(); // Or response.text()
-                errorText = errorData.message || errorData.error || JSON.stringify(errorData);
-            } catch (e) { /* Ignore if response body isn't helpful JSON/text */ }
-            throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
-        }
-        const data = await response.json();
-        log('Map data loaded successfully:', { tiles: data?.tiles?.length, metadata: data?.metadata });
-        // Basic validation
-        if (!data || !data.tiles || !data.metadata) {
-             throw new Error("Invalid map data format received.");
-        }
-        return data;
-    } catch (error) {
-        log('Error loading map data:', error);
-        console.error('Failed to load map data:', error);
-        // Propagate error to be caught by the main initialization catch block
-        throw error; // Re-throw the error
-    }
-}
-
-/**
  * Populates the legend with dynamic content (like terrain types).
- * ***** Added async keyword here *****
+ * Uses dynamic import for config and utils.
  */
-async function setupLegend() { // <--- Added async
+async function setupLegend() {
      const terrainLegend = document.getElementById('terrain-legend');
      if (!terrainLegend) {
          log("Warning: Terrain legend container not found.");
@@ -116,11 +166,14 @@ async function setupLegend() { // <--- Added async
      terrainLegend.innerHTML = '';
 
      try {
-         // Get terrain colors from config using await
+         // Dynamically import config to get colors
          // Ensure paths are correct relative to main.js if using relative paths
          const { terrainColors } = await import('./config.js');
-         const { formatTerrainName } = await import('./utils.js');
+         // formatTerrainName is already imported at the top
 
+         if (!terrainColors) {
+            throw new Error("Terrain colors not found in config module.");
+         }
 
          Object.entries(terrainColors).forEach(([terrain, color]) => {
              const item = document.createElement('div');
@@ -128,10 +181,11 @@ async function setupLegend() { // <--- Added async
 
              const colorBox = document.createElement('div');
              colorBox.className = 'legend-color';
-             colorBox.style.backgroundColor = color;
+             // Ensure color is a valid CSS color string
+             colorBox.style.backgroundColor = typeof color === 'number' ? `#${color.toString(16).padStart(6, '0')}` : color;
 
              const label = document.createElement('span');
-             label.textContent = formatTerrainName(terrain);
+             label.textContent = formatTerrainName(terrain); // Use imported function
 
              item.appendChild(colorBox);
              item.appendChild(label);
@@ -139,7 +193,7 @@ async function setupLegend() { // <--- Added async
          });
          log("Terrain legend populated.");
      } catch (error) {
-         log("Error dynamically importing modules for legend setup:", error);
+         log("Error dynamically importing modules or populating legend:", error);
          console.error("Failed to setup legend:", error);
          // Optionally display a message in the legend area
          terrainLegend.innerHTML = '<p style="color: red; font-size: 11px;">Error loading legend data.</p>';
@@ -152,31 +206,33 @@ window.addEventListener('error', function (event) {
   if (event.message.includes('Failed to fetch dynamically imported module') ||
       event.message.includes('Error loading script') ||
       event.message.includes('SyntaxError') || // Catch general syntax errors during load
-      event.filename.includes('/modules/')) { // Check if error originates from modules
+      event.filename?.includes('/modules/')) { // Check if error originates from modules (optional chaining for filename)
 
     console.error('Module Loading/Execution Error:', event.message, event.filename, event.lineno);
     log(`Critical Error: Failed to load/execute script module: ${event.filename || event.message}. Check paths, syntax, and server configuration.`);
 
     // Try to display an error message overlay if the body hasn't been replaced
     const existingError = document.getElementById('critical-error-overlay');
-    if (!existingError) {
+    if (!existingError && document.body) { // Check if body exists
         const errorDiv = document.createElement('div');
         errorDiv.id = 'critical-error-overlay';
-        errorDiv.style.position = 'fixed';
-        errorDiv.style.top = '0';
-        errorDiv.style.left = '0';
-        errorDiv.style.width = '100%';
-        errorDiv.style.height = '100%';
-        errorDiv.style.backgroundColor = 'rgba(255, 0, 0, 0.8)';
-        errorDiv.style.color = 'white';
-        errorDiv.style.zIndex = '2000';
-        errorDiv.style.display = 'flex';
-        errorDiv.style.justifyContent = 'center';
-        errorDiv.style.alignItems = 'center';
-        errorDiv.style.textAlign = 'center';
-        errorDiv.style.padding = '20px';
-        errorDiv.innerHTML = `<h2>Application Error</h2><p>Failed to load or run essential scripts.</p><p>Please check the browser's developer console (F12) for details.</p><p style="font-size: 0.8em; margin-top: 10px;">(${event.message})</p>`;
+        // Apply similar styles as .error-message but full screen overlay
+        errorDiv.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(200, 0, 0, 0.85); color: white;
+            z-index: 2000; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; text-align: center;
+            padding: 20px; font-family: Arial, sans-serif;
+        `;
+        errorDiv.innerHTML = `
+            <h2 style="margin-bottom: 15px;">Application Error</h2>
+            <p>Failed to load or run essential scripts.</p>
+            <p>Please check the browser's developer console (F12) for details.</p>
+            <p style="font-size: 0.8em; margin-top: 10px; font-family: monospace; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 3px;">(${event.message})</p>
+        `;
         document.body.appendChild(errorDiv);
+        // Hide loading overlay if it exists
+        if(loadingOverlay) loadingOverlay.style.display = 'none';
     }
   }
 });

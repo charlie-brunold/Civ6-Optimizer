@@ -8,12 +8,19 @@
     <style>
         /* Basic styles needed before CSS loads or if CSS fails */
         body { margin: 0; overflow: hidden; background-color: #f0f0f0; }
-        #map-container { width: 100vw; height: 100vh; display: block; background-color: #111; } /* Ensure container takes space */
+        #map-container { width: 100vw; height: 100vh; display: block; background-color: #111; position: relative; /* Needed for overlay */}
         .error-message { /* Basic error styling */
             color: red; background: white; padding: 1em; border: 1px solid red;
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             z-index: 1000; text-align: center;
          }
+        /* Basic loading overlay style */
+        #loading-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); color: white;
+            display: flex; justify-content: center; align-items: center;
+            z-index: 100; /* Ensure it's above map content */
+        }
     </style>
 </head>
 <body>
@@ -57,8 +64,16 @@
         </div>
 
         <div id="map-container">
-             <div id="tooltip" class="tooltip"></div>
-        </div>
+            <div id="loading-overlay">
+                <div id="loading-content" style="text-align: center;">
+                    <div id="loading-text" style="margin-bottom: 15px; font-size: 1.2em;">Loading Map Data... 0%</div>
+                    <div id="progress-bar-container" style="width: 80%; max-width: 400px; height: 20px; background-color: #555; border-radius: 10px; overflow: hidden; margin: 0 auto;">
+                        <div id="progress-bar" style="width: 0%; height: 100%; background-color: #4caf50; border-radius: 10px; transition: width 0.3s ease-out;"></div>
+                    </div>
+                    <div id="loading-error" style="display: none; color: #ff6b6b; margin-top: 15px; font-weight: bold;"></div>
+                </div>
+            </div>
+            <div id="tooltip" class="tooltip"></div> </div>
 
         <div class="legend">
             <div class="legend-header">
@@ -110,7 +125,9 @@
             <div id="debug-content"></div>
         </div>
 
-    </div> <script type="importmap">
+    </div>
+
+    <script type="importmap">
       {
         "imports": {
           "three": "https://cdn.jsdelivr.net/npm/three@0.146.0/build/three.module.js",

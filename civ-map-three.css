@@ -136,7 +136,7 @@ input[type="range"] {
 /* Map Container */
 #map-container {
     flex-grow: 1; /* Take remaining vertical space */
-    position: relative; /* Needed for tooltip positioning */
+    position: relative; /* Needed for tooltip and loading overlay positioning */
     background-color: #1a1a1a; /* Dark background for contrast */
     overflow: hidden; /* Ensure nothing spills out */
     min-height: 300px; /* Minimum height */
@@ -149,6 +149,73 @@ input[type="range"] {
     height: 100%;
 }
 
+/* --- START: Loading Overlay Styles --- */
+#loading-overlay {
+    position: absolute; /* Position over the map-container */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.75); /* Slightly darker semi-transparent black */
+    display: flex; /* Use flexbox to center content */
+    justify-content: center;
+    align-items: center;
+    z-index: 100; /* Ensure it's on top of map canvas, below header/legend if needed */
+    color: white;
+    text-align: center;
+    transition: opacity 0.5s ease-out; /* Smooth fade-out transition */
+    opacity: 1; /* Start visible */
+}
+
+/* Style for when loading is complete and overlay should hide */
+#loading-overlay.hidden {
+    opacity: 0;
+    pointer-events: none; /* Allow clicks to pass through when hidden */
+}
+
+
+#loading-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#loading-text {
+    margin-bottom: 15px;
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+#progress-bar-container {
+    width: 80%; /* Width of the progress bar container relative to loading-content */
+    max-width: 400px; /* Max width */
+    height: 20px;
+    background-color: #555; /* Dark grey background for the bar container */
+    border-radius: 10px; /* Rounded corners */
+    overflow: hidden; /* Keep the inner bar contained */
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); /* Inner shadow for depth */
+}
+
+#progress-bar {
+    width: 0%; /* Initial width is 0 */
+    height: 100%;
+    background-color: #4caf50; /* Green progress color */
+    border-radius: 10px; /* Match container rounding */
+    transition: width 0.4s ease-out; /* Smooth transition for width changes */
+    /* Optional: Add a subtle gradient */
+    background-image: linear-gradient(to bottom, #66bb6a, #43a047);
+}
+
+#loading-error {
+    display: none; /* Hidden by default */
+    color: #ff8a80; /* Lighter red color for errors on dark background */
+    margin-top: 15px;
+    font-weight: bold;
+    max-width: 90%; /* Prevent error text from being too wide */
+}
+/* --- END: Loading Overlay Styles --- */
+
+
 /* Tooltip */
 .tooltip {
     position: absolute;
@@ -160,7 +227,7 @@ input[type="range"] {
     box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     pointer-events: none; /* Don't interfere with mouse events */
     max-width: 220px;
-    z-index: 100;
+    z-index: 110; /* Above loading overlay if it lingers */
     font-size: 12px; /* Smaller tooltip text */
     line-height: 1.4;
     border: 1px solid #555;
@@ -351,6 +418,7 @@ input[type="range"] {
     text-align: center;
     border: 1px solid #ddd;
     max-width: 80%;
+    z-index: 120; /* Ensure error messages are visible */
 }
 .error-message h3 {
     color: #d9534f; /* Reddish color */
@@ -361,4 +429,3 @@ input[type="range"] {
     font-size: 14px;
     color: #555;
 }
-
