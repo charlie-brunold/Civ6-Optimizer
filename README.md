@@ -94,7 +94,7 @@ Map data should be in CSV format. Key columns used by the `csv_to_three_converte
 - `Continent`: Continent identifier string
 - `GoodyHut`: Boolean (`True`/`False`, `1`/`0`)
 
-Place your CSV file (e.g., in the `datasets` directory) and run the conversion script (Step 2 in "Running the Application") to generate the necessary `civ_map_data.json`.
+Place your CSV file (e.g., in the `datasets` directory) and run the conversion script (Step 2 in "Running the Application") to generate the necessary `civ_map_data.json`. Sample sample data files have been provided for you to explore if exporting your own map proves infeasible.
 
 ## Development Roadmap
 
