@@ -91,11 +91,6 @@ Map data should be in CSV format. Key columns used by the `csv_to_three_converte
 
 Place your CSV file (e.g., in the `datasets` directory) and run the conversion script as described in step 2 of "Running the Application".
 
-## Project Structure
-
-Civ6-Optimizer/├── civ-map-three.html          # Main HTML file for the visualization├── civ-map-three.css           # CSS styles for the visualization├── config.json                 # Configuration for Python script (scoring, tiers)├── csv_to_three_converter.py   # Python script to process CSV and generate JSON data├── civ_map_data.json           # Output JSON data used by the frontend (generated)├── modules/                    # Directory for JavaScript ES6 modules│   ├── main.js                 # Main JS entry point│   ├── config.js               # Frontend configuration (colors, sizes, toggles)│   ├── state.js                # Shared application state│   ├── utils.js                # Utility functions (formatting, math)│   ├── sceneSetup.js           # Three.js scene, camera, renderer setup│   ├── mapElements.js          # Creating/updating hexes, markers, labels│   ├── interaction.js          # Mouse/keyboard interaction, tooltips│   ├── uiControls.js           # HTML UI element event listeners│   ├── boatAnimation.js        # Boat animation logic│   └── animation.js            # Main animation loop├── datasets/                   # Directory for map data CSV files│   ├── map_tiny_1.csv          # Sample map data│   └── ...├── README.md                   # This file└── ... (other project files like notebooks, legacy code)
-## Future Objectives
-
 This project is being developed as part of a BUAD 313 Operations Management class with the following planned features:
 
 ### Short-term Goals
