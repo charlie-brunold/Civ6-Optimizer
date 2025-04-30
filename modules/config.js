@@ -26,8 +26,7 @@ const defaultScoringWeights = {
 
 // --- Tier Percentile Definitions ---
 // Defines the *upper* boundary (inclusive) for each tier based on normalized score percentile.
-// Example: F includes scores up to the 10th percentile, D up to the 25th, etc.
-// Processed F -> S. Ensure the highest tier goes up to 1.0 (100%).
+// Used for assigning tiers based on score distribution if needed elsewhere.
 const defaultTierPercentiles = {
     "F": 0.05, // 5%
     "E": 0.15, // 10%
@@ -57,8 +56,8 @@ export const config = {
     debug: false,
     // Add the scoring_weights property, initializing with a *copy* of the defaults
     scoring_weights: JSON.parse(JSON.stringify(defaultScoringWeights)),
-    // *** ADD tier_percentiles to the config object ***
-    tier_percentiles: JSON.parse(JSON.stringify(defaultTierPercentiles)) // Use a copy
+    // Keep tier_percentiles if used elsewhere (e.g., for dynamic tier assignment)
+    tier_percentiles: JSON.parse(JSON.stringify(defaultTierPercentiles))
 };
 
 // --- Heatmap Configuration ---
@@ -100,17 +99,33 @@ export const resourceStyles = {
     'default': { color: '#ff9800', size: 0.2 }
 };
 
-// Tier styles (used for label appearance)
+// Tier styles (used for label appearance in CSS via classes like .tier-S)
 export const tierStyles = {
-    'S': { color: '#ffcc00', textColor: 'black' },
+    'S': { color: '#ffcc00', textColor: 'black' }, // Background color for the symbol
     'A': { color: '#ff8800', textColor: 'black' },
     'B': { color: '#66cc66', textColor: 'black' },
     'C': { color: '#6699cc', textColor: 'black' },
     'D': { color: '#cccccc', textColor: 'black' },
     'E': { color: '#999999', textColor: 'black' },
     'F': { color: '#666666', textColor: 'white' }
-    // Add 'N/A' or null style if needed for non-tiered tiles
 };
+
+// *** ADDED: Tier Configuration for Legend Display ***
+// Defines the score ranges used for displaying tier info in the legend.
+// Adjust min/max values to match your actual scoring logic.
+export const tierConfig = {
+    tiers: {
+        // Example score ranges - MODIFY THESE!
+        'S': { min: 300 }, // Score 300 and above
+        'A': { min: 250, max: 299.99 },
+        'B': { min: 200, max: 249.99 },
+        'C': { min: 150, max: 199.99 },
+        'D': { min: 100, max: 149.99 },
+        'E': { min: 50, max: 99.99 },
+        'F': { max: 49.99 } // Scores below 50
+    }
+};
+// ****************************************************
 
 // --- Functions ---
 
@@ -136,7 +151,7 @@ export function updateConfig(key, value) {
         const finalKey = keys[keys.length - 1];
         if (typeof current === 'object' && current !== null) {
             current[finalKey] = value;
-            // log(`Config updated: ${key} = ${value}`); // Optional: Log successful update
+            // log(`Config updated: ${key} = ${JSON.stringify(value)}`); // Log successful update
 
             // Recalculate derived values if necessary
             if (key === 'hexRadius') {
@@ -168,4 +183,3 @@ export function getDefaultWeights() {
 updateConfig('hexRadius', config.hexRadius);
 
 log("Config module initialized.");
-

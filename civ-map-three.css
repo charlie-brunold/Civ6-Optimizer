@@ -252,20 +252,29 @@ input[type="range"] {
 /* Legend */
 .legend {
     position: absolute;
-    bottom: 15px;
-    right: 15px;
+    bottom: 15px; /* Position from bottom */
+    right: 15px;  /* Position from right */
     background-color: rgba(255, 255, 255, 0.85); /* Semi-transparent white */
     backdrop-filter: blur(4px); /* Frosted glass effect */
     padding: 12px;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    max-width: 180px; /* Slightly narrower */
-    max-height: calc(100vh - 150px); /* Limit height based on viewport */
-    overflow-y: auto; /* Allow scrolling if content overflows */
+    max-width: 220px; /* Allow slightly wider content */
+    max-height: 75vh; /* Limit height to 75% of viewport height */
+    overflow-y: auto; /* Add scrollbar ONLY if content exceeds max-height */
     z-index: 50; /* Above map, below header */
     font-size: 12px;
     border: 1px solid rgba(0,0,0,0.1);
+    transition: opacity 0.3s ease, visibility 0.3s ease; /* Smooth hide/show */
 }
+
+/* Style for when the legend is hidden */
+.legend.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none; /* Prevent interaction when hidden */
+}
+
 
 .legend-header {
     display: flex;
@@ -374,6 +383,22 @@ input[type="range"] {
     font-size: 10px;
     color: #666;
 }
+
+/* --- Styles for the Show Legend Button --- */
+#show-legend-button {
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    z-index: 51; /* Ensure it's above other elements when visible */
+    display: none; /* Hidden by default */
+    /* Inherits .control-button styles */
+}
+
+/* *** ADDED: Class to make the button visible *** */
+#show-legend-button.visible {
+    display: block; /* Or 'inline-block' if needed */
+}
+/* ---------------------------------------------- */
 
 
 /* Debug Info Overlay */

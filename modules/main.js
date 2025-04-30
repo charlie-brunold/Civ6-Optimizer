@@ -7,7 +7,7 @@ import * as THREE from 'three'; // Import THREE itself
 // Note: OrbitControls is loaded via import map in HTML, but THREE needs direct import
 
 // Import necessary modules
-import { config } from './config.js';
+import { config, tierConfig } from './config.js'; // Import tierConfig as well
 import { initScene } from './sceneSetup.js';
 import { createMapVisualization } from './mapElements.js';
 import { initInteraction } from './interaction.js';
@@ -136,6 +136,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // 5. Initial Legend Setup (can run concurrently or after data load)
         setupLegend(); // Populate dynamic parts of the legend
 
+        // 6. Setup Legend Toggle Functionality
+        setupLegendToggle();
+
     } catch (initError) {
         // Catch synchronous errors during initialization (e.g., in initScene)
         log('Critical initialization error:', initError);
@@ -152,36 +155,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /**
- * Populates the legend with dynamic content (like terrain types).
- * Uses dynamic import for config and utils.
+ * Populates the legend with dynamic content (terrain types and tiers).
+ * Uses imported config data.
  */
 async function setupLegend() {
      const terrainLegend = document.getElementById('terrain-legend');
-     if (!terrainLegend) {
-         log("Warning: Terrain legend container not found.");
+     const tierLegend = document.getElementById('tier-legend'); // Get tier legend container
+
+     if (!terrainLegend || !tierLegend) {
+         log("Warning: Legend containers (terrain or tier) not found.");
          return;
      }
 
      // Clear existing items
      terrainLegend.innerHTML = '';
+     tierLegend.innerHTML = '';
 
      try {
-         // Dynamically import config to get colors
-         // Ensure paths are correct relative to main.js if using relative paths
-         const { terrainColors } = await import('./config.js');
-         // formatTerrainName is already imported at the top
+         // Config data (terrainColors, tierConfig) is now imported directly at the top
+         // No need for dynamic import here anymore
+
+         // Ensure config data is available (check if needed, imports handle errors)
+         const { terrainColors } = await import('./config.js'); // Still need this for colors if not imported globally
 
          if (!terrainColors) {
             throw new Error("Terrain colors not found in config module.");
          }
+         if (!tierConfig || !tierConfig.tiers) { // Check tierConfig and its nested tiers object
+            throw new Error("Tier config or tiers object not found in config module.");
+         }
 
+         // Populate Terrain Legend
          Object.entries(terrainColors).forEach(([terrain, color]) => {
              const item = document.createElement('div');
              item.className = 'legend-item';
 
              const colorBox = document.createElement('div');
              colorBox.className = 'legend-color';
-             // Ensure color is a valid CSS color string
              colorBox.style.backgroundColor = typeof color === 'number' ? `#${color.toString(16).padStart(6, '0')}` : color;
 
              const label = document.createElement('span');
@@ -192,13 +202,77 @@ async function setupLegend() {
              terrainLegend.appendChild(item);
          });
          log("Terrain legend populated.");
+
+         // Populate Tier Legend using the imported tierConfig
+         Object.entries(tierConfig.tiers).forEach(([tier, tierData]) => { // Use tierData for clarity
+             const item = document.createElement('div');
+             item.className = 'legend-item';
+
+             const tierSymbol = document.createElement('div');
+             // Use the CSS class for styling based on tier name
+             tierSymbol.className = `tier-symbol tier-${tier}`;
+             tierSymbol.textContent = tier; // Display the tier letter (S, A, B...)
+
+             const label = document.createElement('span');
+             // Display the score range for the tier
+             // Use nullish coalescing (??) for cleaner handling of missing min/max
+             const minScore = tierData.min ?? '-∞';
+             const maxScore = tierData.max ?? '∞';
+             label.textContent = `(Score ${minScore} to ${maxScore})`;
+             // Add a title attribute for more detail on hover (optional)
+             label.title = `Tier ${tier}: Minimum Score ${minScore}, Maximum Score ${maxScore}`;
+
+
+             item.appendChild(tierSymbol);
+             item.appendChild(label);
+             tierLegend.appendChild(item);
+         });
+         log("Tier legend populated.");
+
+
      } catch (error) {
-         log("Error dynamically importing modules or populating legend:", error);
+         log("Error populating legend:", error);
          console.error("Failed to setup legend:", error);
          // Optionally display a message in the legend area
-         terrainLegend.innerHTML = '<p style="color: red; font-size: 11px;">Error loading legend data.</p>';
+         if (terrainLegend) terrainLegend.innerHTML = '<p style="color: red; font-size: 11px;">Error loading terrain legend.</p>';
+         if (tierLegend) tierLegend.innerHTML = '<p style="color: red; font-size: 11px;">Error loading tier legend.</p>';
      }
 }
+
+// --- UPDATED: Function to handle Legend Hide/Show using CSS classes ---
+function setupLegendToggle() {
+    const legend = document.querySelector('.legend');
+    const legendToggle = document.getElementById('legend-toggle'); // 'Hide' button inside legend
+    const showLegendButton = document.getElementById('show-legend-button'); // Separate 'Show Legend' button
+
+    if (legend && legendToggle && showLegendButton) {
+        // --- Action when 'Hide' (inside legend) is clicked ---
+        legendToggle.addEventListener('click', () => {
+            legend.classList.add('hidden');         // Hide the legend (uses CSS class for transition)
+            showLegendButton.classList.add('visible'); // *** Use classList.add to show button ***
+            log("Legend hidden.");
+        });
+
+        // --- Action when 'Show Legend' (separate button) is clicked ---
+        showLegendButton.addEventListener('click', () => {
+            legend.classList.remove('hidden');      // Show the legend
+            showLegendButton.classList.remove('visible'); // *** Use classList.remove to hide button ***
+            log("Legend shown.");
+        });
+
+        // --- Initial State ---
+        // Ensure legend is visible and the 'Show Legend' button is hidden initially
+        legend.classList.remove('hidden');
+        showLegendButton.classList.remove('visible'); // *** Ensure 'visible' class is not present initially ***
+        log("Legend toggle initialized. Legend visible by default.");
+
+    } else {
+        console.error("Legend toggle elements not found! Could not initialize hide/show.");
+        log("Error: Legend toggle elements (#legend-toggle, #show-legend-button, .legend) not found.");
+    }
+}
+// --------------------------------------------------------------------
+
 
 // Add basic error handling for module loading itself
 window.addEventListener('error', function (event) {

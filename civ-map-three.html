@@ -100,7 +100,7 @@
                     </label>
                 </div>
 
-                 <div class="control-group">
+                <div class="control-group">
                      <button id="highlight-top-tiles" class="control-button" title="Highlight S and A tier tiles">Highlight Top Tiles</button>
                  </div>
 
@@ -171,9 +171,9 @@
                             <input type="range" id="weight-balance" class="weight-slider" data-weight-key="bonuses.balance_factor" min="0" max="2" step="0.1">
                             <span class="slider-value" id="weight-balance-value">0.5</span>
                         </div>
-                        </div>
+                    </div>
                 </div>
-                </div>
+            </div>
         </div>
 
         <div id="map-container">
@@ -230,14 +230,15 @@
             </div>
         </div>
 
+        <button id="show-legend-button" class="control-button">
+            Show Legend
+        </button>
         <div id="debug-info" style="display: none;">
             <h3>Debug Info</h3>
             <div id="debug-content"></div>
         </div>
 
-    </div>
-
-    <script type="importmap">
+    </div> <script type="importmap">
       {
         "imports": {
           "three": "https://cdn.jsdelivr.net/npm/three@0.146.0/build/three.module.js",
