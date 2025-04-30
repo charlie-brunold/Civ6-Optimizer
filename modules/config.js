@@ -6,7 +6,6 @@ import * as THREE from 'three'; // Import THREE for Color objects
 import { log } from './utils.js'; // Import log for debugging updates
 
 // --- Default Scoring Weights ---
-// Define the default 'balanced' weights separately so they are immutable
 const defaultScoringWeights = {
     yields: {
         food: 1.0,
@@ -20,26 +19,16 @@ const defaultScoringWeights = {
         fresh_water: 10.0,
         appeal_positive_factor: 0.5,
         goody_hut: 15.0
-        // Add other default bonus weights here if needed
     }
 };
 
 // --- Tier Percentile Definitions ---
-// Defines the *upper* boundary (inclusive) for each tier based on normalized score percentile.
-// Used for assigning tiers based on score distribution if needed elsewhere.
 const defaultTierPercentiles = {
-    "F": 0.05, // 5%
-    "E": 0.15, // 10%
-    "D": 0.35, // 20%
-    "C": 0.65, // 30%
-    "B": 0.85, // 20%
-    "A": 0.95, // 10%
-    "S": 1.00  // 5%
+    "F": 0.05, "E": 0.15, "D": 0.35, "C": 0.65, "B": 0.85, "A": 0.95, "S": 1.00
 };
 
 
 // --- Base Configuration State ---
-// This object holds the *current* configuration, which can be modified
 export const config = {
     hexRadius: 1.0,
     hexHeight: 0.5,
@@ -51,84 +40,55 @@ export const config = {
     highlightTopTiles: false,
     selectedTiers: ['S', 'A', 'B', 'C', 'D', 'E', 'F'],
     showScoreHeatmap: false,
-    showBoat: true, // Assuming this is still used elsewhere
+    showBoat: true,
     panSpeed: 0.5,
     debug: false,
-    // Add the scoring_weights property, initializing with a *copy* of the defaults
+    // **** ADDED hoverRadius ****
+    hoverRadius: 1, // Default radius for hover effect (0 = center only, 1 = adjacent, etc.)
+    // ***************************
     scoring_weights: JSON.parse(JSON.stringify(defaultScoringWeights)),
-    // Keep tier_percentiles if used elsewhere (e.g., for dynamic tier assignment)
     tier_percentiles: JSON.parse(JSON.stringify(defaultTierPercentiles))
 };
 
 // --- Heatmap Configuration ---
 export const heatmapColors = [
-    new THREE.Color(0x0000ff), // Blue (Low)
-    new THREE.Color(0x00ffff), // Cyan
-    new THREE.Color(0x00ff00), // Green
-    new THREE.Color(0xffff00), // Yellow
-    new THREE.Color(0xff0000)  // Red (High)
+    new THREE.Color(0x0000ff), new THREE.Color(0x00ffff), new THREE.Color(0x00ff00),
+    new THREE.Color(0xffff00), new THREE.Color(0xff0000)
 ];
-export const heatmapNeutralColor = new THREE.Color(0x444455); // Dark blue/grey for non-scored tiles
+export const heatmapNeutralColor = new THREE.Color(0x444455);
 
 // --- Static Styles & Colors ---
 export const terrainColors = {
-    'TERRAIN_OCEAN': '#1a5f9e',
-    'TERRAIN_COAST': '#4da6ff',
-    'TERRAIN_PLAINS': '#e8d292',
-    'TERRAIN_GRASS': '#8bc34a',
-    'TERRAIN_GRASS_HILLS': '#689f38',
-    'TERRAIN_DESERT_HILLS': '#ffd54f',
-    'TERRAIN_TUNDRA': '#e0e0e0',
-    'TERRAIN_TUNDRA_HILLS': '#bdbdbd',
-    'TERRAIN_SNOW': '#f5f5f5',
-    'TERRAIN_GRASS_MOUNTAIN': '#795548',
-    'TERRAIN_PLAINS_MOUNTAIN': '#6d4c41',
-    'TERRAIN_DESERT_MOUNTAIN': '#5d4037',
-    'TERRAIN_TUNDRA_MOUNTAIN': '#4e342e',
-    'TERRAIN_SNOW_MOUNTAIN': '#3e2723',
-    'TERRAIN_PLAINS_HILLS': '#dbc773',
+    'TERRAIN_OCEAN': '#1a5f9e', 'TERRAIN_COAST': '#4da6ff', 'TERRAIN_PLAINS': '#e8d292',
+    'TERRAIN_GRASS': '#8bc34a', 'TERRAIN_GRASS_HILLS': '#689f38', 'TERRAIN_DESERT_HILLS': '#ffd54f',
+    'TERRAIN_TUNDRA': '#e0e0e0', 'TERRAIN_TUNDRA_HILLS': '#bdbdbd', 'TERRAIN_SNOW': '#f5f5f5',
+    'TERRAIN_GRASS_MOUNTAIN': '#795548', 'TERRAIN_PLAINS_MOUNTAIN': '#6d4c41', 'TERRAIN_DESERT_MOUNTAIN': '#5d4037',
+    'TERRAIN_TUNDRA_MOUNTAIN': '#4e342e', 'TERRAIN_SNOW_MOUNTAIN': '#3e2723', 'TERRAIN_PLAINS_HILLS': '#dbc773',
     'TERRAIN_DESERT': '#ffc107'
-    // Add other terrains as needed
 };
-export const defaultColor = '#a9a9a9'; // Fallback terrain color
+export const defaultColor = '#a9a9a9';
 
 export const resourceStyles = {
-    'Luxury': { color: '#9c27b0', size: 0.2 },
-    'Strategic': { color: '#f44336', size: 0.2 },
-    'Bonus': { color: '#4caf50', size: 0.2 },
-    'default': { color: '#ff9800', size: 0.2 }
+    'Luxury': { color: '#9c27b0', size: 0.2 }, 'Strategic': { color: '#f44336', size: 0.2 },
+    'Bonus': { color: '#4caf50', size: 0.2 }, 'default': { color: '#ff9800', size: 0.2 }
 };
 
-// Tier styles (used for label appearance in CSS via classes like .tier-S)
 export const tierStyles = {
-    'S': { color: '#ffcc00', textColor: 'black' }, // Background color for the symbol
-    'A': { color: '#ff8800', textColor: 'black' },
-    'B': { color: '#66cc66', textColor: 'black' },
-    'C': { color: '#6699cc', textColor: 'black' },
-    'D': { color: '#cccccc', textColor: 'black' },
-    'E': { color: '#999999', textColor: 'black' },
+    'S': { color: '#ffcc00', textColor: 'black' }, 'A': { color: '#ff8800', textColor: 'black' },
+    'B': { color: '#66cc66', textColor: 'black' }, 'C': { color: '#6699cc', textColor: 'black' },
+    'D': { color: '#cccccc', textColor: 'black' }, 'E': { color: '#999999', textColor: 'black' },
     'F': { color: '#666666', textColor: 'white' }
 };
 
-// *** ADDED: Tier Configuration for Legend Display ***
-// Defines the score ranges used for displaying tier info in the legend.
-// Adjust min/max values to match your actual scoring logic.
 export const tierConfig = {
     tiers: {
-        // Example score ranges - MODIFY THESE!
-        'S': { min: 300 }, // Score 300 and above
-        'A': { min: 250, max: 299.99 },
-        'B': { min: 200, max: 249.99 },
-        'C': { min: 150, max: 199.99 },
-        'D': { min: 100, max: 149.99 },
-        'E': { min: 50, max: 99.99 },
-        'F': { max: 49.99 } // Scores below 50
+        'S': { min: 300 }, 'A': { min: 250, max: 299.99 }, 'B': { min: 200, max: 249.99 },
+        'C': { min: 150, max: 199.99 }, 'D': { min: 100, max: 149.99 }, 'E': { min: 50, max: 99.99 },
+        'F': { max: 49.99 }
     }
 };
-// ****************************************************
 
 // --- Functions ---
-
 /**
  * Updates a configuration value, supporting nested keys.
  * @param {string} key - The configuration key (e.g., 'showResources', 'scoring_weights.yields.food').
@@ -138,22 +98,17 @@ export function updateConfig(key, value) {
     const keys = key.split('.');
     let current = config;
     try {
-        // Traverse object structure except for the last key
         for (let i = 0; i < keys.length - 1; i++) {
             if (current[keys[i]] === undefined) {
                 log(`Warning: Intermediate key "${keys[i]}" not found in config path "${key}". Cannot update.`);
-                return; // Stop if path doesn't exist
+                return;
             }
             current = current[keys[i]];
         }
-
-        // Set the value on the final key
         const finalKey = keys[keys.length - 1];
         if (typeof current === 'object' && current !== null) {
             current[finalKey] = value;
             // log(`Config updated: ${key} = ${JSON.stringify(value)}`); // Log successful update
-
-            // Recalculate derived values if necessary
             if (key === 'hexRadius') {
                 config.verticalSpacing = config.hexRadius * Math.sqrt(3) / 2;
                 config.horizontalSpacing = config.hexRadius * 1.5;
@@ -162,7 +117,6 @@ export function updateConfig(key, value) {
         } else {
              log(`Warning: Cannot set property "${finalKey}" on non-object in config path "${key}".`);
         }
-
     } catch (error) {
         log(`Error updating config key "${key}":`, error);
         console.error(`Error updating config key "${key}":`, error);
@@ -171,15 +125,12 @@ export function updateConfig(key, value) {
 
 /**
  * Returns a deep copy of the default scoring weights.
- * @returns {object} A deep copy of the default scoring weights.
  */
 export function getDefaultWeights() {
-    // Use JSON stringify/parse for a simple deep copy
     return JSON.parse(JSON.stringify(defaultScoringWeights));
 }
 
 // --- Initial Calculations ---
-// Calculate initial spacing based on default radius
 updateConfig('hexRadius', config.hexRadius);
 
 log("Config module initialized.");

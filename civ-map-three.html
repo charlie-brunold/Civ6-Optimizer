@@ -76,6 +76,17 @@
             margin-right: 5px;
             margin-bottom: 5px; /* Spacing for buttons */
         }
+        /* Style for the new radius input */
+        .radius-input-label {
+            display: inline-flex; /* Align items nicely */
+            align-items: center;
+            gap: 5px; /* Space between label and input */
+            margin-left: 15px; /* Spacing from other controls */
+        }
+        .radius-input-label input[type="number"] {
+            width: 50px; /* Adjust width as needed */
+            padding: 2px 5px;
+        }
 
     </style>
 </head>
@@ -98,7 +109,11 @@
                     <label class="checkbox-label">
                         <input type="checkbox" id="toggle-heatmap"> Show Score Heatmap
                     </label>
-                </div>
+                    <label class="radius-input-label" for="hover-radius-input">
+                        Hover Radius:
+                        <input type="number" id="hover-radius-input" min="0" max="5" step="1" title="Set hover effect radius (0=center only)">
+                    </label>
+                    </div>
 
                 <div class="control-group">
                      <button id="highlight-top-tiles" class="control-button" title="Highlight S and A tier tiles">Highlight Top Tiles</button>

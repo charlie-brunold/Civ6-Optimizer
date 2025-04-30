@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import * as state from './state.js';
 import { config, terrainColors, resourceStyles, tierStyles, defaultColor, heatmapColors, heatmapNeutralColor } from './config.js';
 import { calculateElevation, log } from './utils.js';
+import { buildHexagonCoordMap } from './interaction.js'; // Adjust path if needed
 
 /**
  * Creates a beveled hexagon geometry.
@@ -310,6 +311,8 @@ export function createMapVisualization(data) {
         }
     });
     log(`Created ${state.hexagons.length} hexagons, ${state.resourceMarkers.length} markers, ${state.tierLabels.length} labels.`);
+
+    buildHexagonCoordMap();
 
     // Perform initial display update based on loaded data and default config
     updateMapDisplay();
