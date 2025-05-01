@@ -1,9 +1,9 @@
 /**
  * uiControls.js
  * Sets up event listeners for UI controls (buttons, checkboxes, sliders),
- * including scoring weight adjustments and hover radius.
+ * including scoring weight adjustments, hover radius, and debug mode toggle.
  */
-import * as THREE from 'three'; // Import THREE for color manipulation if needed
+import * as THREE from 'three';
 // Import config and state management
 import { config, updateConfig, tierStyles, heatmapColors, getDefaultWeights } from './config.js';
 import * as state from './state.js'; // Import state module
@@ -13,6 +13,8 @@ import { updateMapDisplay } from './mapElements.js';
 import { recalculateScoresAndTiers } from './scoring.js';
 // Import utilities
 import { log, debounce } from './utils.js';
+// Import interaction functions needed if debug mode affects interactions directly from UI
+// import { exitDebugMode } from './interaction.js'; // Example if needed
 
 // --- Preset Weight Configurations ---
 const scoringPresets = {
@@ -21,15 +23,15 @@ const scoringPresets = {
     food_growth: { /* ... */ },
     gold: { /* ... */ },
     science: { /* ... */ }
-    // Presets remain the same
 };
-scoringPresets.balanced = getDefaultWeights(); // Ensure balanced uses the default
+scoringPresets.balanced = getDefaultWeights();
 
 
 /**
  * Helper function to recalculate scores, update state, and refresh display.
  */
 function handleRecalculation(triggerSource) {
+    // (Function remains the same)
     if (state.mapData && state.mapData.tiles) {
         log(`Triggering recalculation due to ${triggerSource}...`);
         const { scoreThresholds } = recalculateScoresAndTiers(state.mapData.tiles, config);
@@ -62,21 +64,39 @@ export function initUIControls() {
     setupCheckboxListener('toggle-tier-labels', (checked) => {
         updateConfig('showTierLabels', checked);
         updateMapDisplay();
-    });
+    }, 'showTierLabels'); // Pass config key for initialization
     setupCheckboxListener('toggle-resources', (checked) => {
         updateConfig('showResources', checked);
         updateMapDisplay();
-    });
+    }, 'showResources');
     setupCheckboxListener('toggle-elevation', (checked) => {
         updateConfig('elevationFactor', checked ? 0.4 : 0);
         log(`Elevation toggled. New factor: ${config.elevationFactor}.`);
         updateMapDisplay();
-    });
+    }, 'elevationFactor', (value) => value > 0); // Custom check for initialization
     setupCheckboxListener('toggle-heatmap', (checked) => {
         updateConfig('showScoreHeatmap', checked);
         updateHeatmapLegend(checked);
         updateMapDisplay();
-    });
+    }, 'showScoreHeatmap');
+
+    // **** ADDED: Debug Mode Toggle Setup ****
+    setupCheckboxListener('toggle-debug-mode', (checked) => {
+        updateConfig('isDebugModeEnabled', checked);
+        log(`Debug Mode ${checked ? 'Enabled' : 'Disabled'}.`);
+        // If disabling while active, ensure we exit the mode cleanly
+        // This logic might be better placed in interaction.js when ESC is hit,
+        // but adding a check here can be a safeguard.
+        if (!checked && state.isDebugModeActive) { // Assuming state holds isDebugModeActive
+             // Call the function to exit debug mode if it exists
+             if (typeof state.exitDebugMode === 'function') { // Check if exit function exists in state/interaction
+                 state.exitDebugMode();
+             } else {
+                 console.warn("Cannot automatically exit debug mode - exit function not found.");
+             }
+        }
+    }, 'isDebugModeEnabled');
+    // ***************************************
 
     // --- Action Buttons ---
     setupButtonListener('highlight-top-tiles', (button) => {
@@ -107,29 +127,37 @@ export function initUIControls() {
     // --- Scoring Weight Controls ---
     setupWeightControls();
 
-    // **** ADDED: Hover Radius Control Setup ****
+    // --- Hover Radius Control ---
     setupNumberInputListener('hover-radius-input', (value) => {
-        updateConfig('hoverRadius', value); // Update config directly
+        updateConfig('hoverRadius', value);
         log(`Hover radius updated to: ${value}`);
-        // No map update needed here, interaction.js reads config directly
-    });
-    // ******************************************
+    }, 'hoverRadius'); // Pass config key for initialization
 
     log("UI controls initialization complete.");
 }
 
 /**
- * Helper to set up checkbox event listeners.
+ * Helper to set up checkbox event listeners, including initialization from config.
+ * @param {string} id - The ID of the checkbox element.
+ * @param {function} callback - Function to call on change (receives checked state).
+ * @param {string} [configKey] - The corresponding key in the config object for initialization.
+ * @param {function} [initCheckFn] - Optional function to determine checked state from config value.
  */
-function setupCheckboxListener(id, callback) {
+function setupCheckboxListener(id, callback, configKey = null, initCheckFn = null) {
     const element = document.getElementById(id);
     if (element) {
-        // Initialize based on current config state (read from config object)
-        const configKey = element.dataset.configKey || id.replace('toggle-', '').replace(/-/g, '_'); // Infer key if needed
-        // This part needs refinement if keys don't match IDs directly
-        // For now, assume callback handles initial state based on config
-        // element.checked = config[configKey]; // Example, might need adjustment
-        callback(element.checked); // Call initially
+        // Initialize based on current config state if key provided
+        if (configKey && config[configKey] !== undefined) {
+            if (initCheckFn) {
+                element.checked = initCheckFn(config[configKey]);
+            } else {
+                element.checked = Boolean(config[configKey]);
+            }
+        }
+        // Call the callback initially AFTER setting the state
+        // callback(element.checked); // Call initially - Removed, let initial state be set silently
+
+        // Add the event listener
         element.addEventListener('change', (event) => {
             callback(event.target.checked);
         });
@@ -139,40 +167,40 @@ function setupCheckboxListener(id, callback) {
 }
 
 /**
- * Helper to set up number input event listeners.
+ * Helper to set up number input event listeners, including initialization from config.
+ * @param {string} id - The ID of the number input element.
+ * @param {function} callback - Function to call on input (receives validated number value).
+ * @param {string} [configKey] - The corresponding key in the config object for initialization.
  */
-function setupNumberInputListener(id, callback) {
+function setupNumberInputListener(id, callback, configKey = null) {
     const element = document.getElementById(id);
     if (element) {
         // Initialize input value from config
-        const configKey = element.dataset.configKey || id.replace('-input', '').replace(/-/g, '_'); // Infer key
-        if (config[configKey] !== undefined) {
+        if (configKey && config[configKey] !== undefined) {
             element.value = config[configKey];
         } else {
              log(`Warning: Config key "${configKey}" not found for input ${id}. Using default value.`);
         }
 
         // Add listener for changes
-        element.addEventListener('input', (event) => { // Use 'input' for immediate feedback
+        element.addEventListener('input', (event) => {
             const rawValue = event.target.value;
-            const intValue = parseInt(rawValue, 10); // Parse as integer
+            const intValue = parseInt(rawValue, 10);
             const min = parseInt(element.min, 10);
             const max = parseInt(element.max, 10);
 
-            // Validate the integer value
             if (!isNaN(intValue)) {
-                 // Clamp value within min/max if they are set
                 const clampedValue = Math.max(isNaN(min) ? -Infinity : min, Math.min(isNaN(max) ? Infinity : max, intValue));
                  if (clampedValue !== intValue) {
-                    // If clamping occurred, update the input visually
                     event.target.value = clampedValue;
                  }
-                callback(clampedValue); // Pass validated & clamped integer value
+                callback(clampedValue);
             } else {
-                // Handle non-integer input if necessary (e.g., reset to default or previous value)
-                log(`Warning: Invalid input "${rawValue}" for ${id}. Ignoring.`);
-                // Optionally reset the input field
-                // event.target.value = config[configKey];
+                 log(`Warning: Invalid input "${rawValue}" for ${id}. Ignoring.`);
+                 // Optionally reset to the config value if input becomes invalid
+                 // if (configKey && config[configKey] !== undefined) {
+                 //    event.target.value = config[configKey];
+                 // }
             }
         });
     } else {
@@ -181,34 +209,27 @@ function setupNumberInputListener(id, callback) {
 }
 
 
-/**
- * Helper to set up button event listeners.
- */
+/** Helper to set up button event listeners. */
 function setupButtonListener(id, callback) {
+    // (Function remains the same)
     const element = document.getElementById(id);
     if (element) {
-        element.addEventListener('click', () => {
-            callback(element);
-        });
+        element.addEventListener('click', () => { callback(element); });
     } else {
         log(`Warning: Button element with ID "${id}" not found.`);
     }
 }
 
-/**
- * Handles changes to the tier filter checkboxes.
- */
+/** Handles changes to the tier filter checkboxes. */
 function handleTierFilterChange() {
-    const checkedTiers = Array.from(document.querySelectorAll('.tier-checkbox:checked'))
-        .map(cb => cb.value);
+    // (Function remains the same)
+    const checkedTiers = Array.from(document.querySelectorAll('.tier-checkbox:checked')).map(cb => cb.value);
     updateConfig('selectedTiers', checkedTiers);
     initializeToggleButtonState();
     updateMapDisplay();
 }
 
-/**
- * Updates the state and appearance of the "Select/Deselect All" tiers button.
- */
+/** Updates the state and appearance of the "Select/Deselect All" tiers button. */
 function initializeToggleButtonState() {
     // (Function remains the same)
     const tierCheckboxes = document.querySelectorAll('.tier-checkbox');
@@ -222,9 +243,7 @@ function initializeToggleButtonState() {
     toggleAllBtn.classList.toggle('inactive', noneSelected);
 }
 
-/**
- * Sets up the legend toggle functionality.
- */
+/** Sets up the legend toggle functionality. */
 function setupLegendToggle() {
     // (Function remains the same)
     const legendToggle = document.getElementById('legend-toggle');
@@ -240,14 +259,10 @@ function setupLegendToggle() {
             legendToggle.textContent = isHidden ? 'Show' : 'Hide';
             legendContainer.classList.toggle('collapsed', isHidden);
         });
-    } else {
-        log("Warning: Legend toggle elements not found.");
-    }
+    } else { log("Warning: Legend toggle elements not found."); }
 }
 
-/**
- * Shows or hides the heatmap legend section and updates its content.
- */
+/** Shows or hides the heatmap legend section and updates its content. */
 function updateHeatmapLegend(show) {
     // (Function remains the same)
     const section = document.getElementById('heatmap-legend-section');
@@ -261,17 +276,13 @@ function updateHeatmapLegend(show) {
             minLabel.textContent = state.minScore?.toFixed(0) ?? 'N/A';
             maxLabel.textContent = state.maxScore?.toFixed(0) ?? 'N/A';
             section.style.display = 'block';
-        } else {
-            section.style.display = 'none';
-        }
+        } else { section.style.display = 'none'; }
     }
 }
 
 // --- Functions for Scoring Weight Controls ---
 
-/**
- * Sets up event listeners for the scoring weight controls.
- */
+/** Sets up event listeners for the scoring weight controls. */
 function setupWeightControls() {
     // (Function remains the same)
     log("Setting up weight controls...");
@@ -280,56 +291,23 @@ function setupWeightControls() {
     const presetButtonContainer = document.getElementById('preset-buttons');
     const resetButton = document.getElementById('reset-weights');
     const sliders = document.querySelectorAll('.weight-slider');
-
     if (weightsHeader && weightsContent) { /* ... toggle logic ... */
-        weightsHeader.addEventListener('click', () => {
-            weightsContent.classList.toggle('hidden');
-            weightsHeader.classList.toggle('collapsed');
-        });
-        weightsContent.classList.remove('hidden');
-        weightsHeader.classList.remove('collapsed');
+        weightsHeader.addEventListener('click', () => { weightsContent.classList.toggle('hidden'); weightsHeader.classList.toggle('collapsed'); });
+        weightsContent.classList.remove('hidden'); weightsHeader.classList.remove('collapsed');
     }
     if (presetButtonContainer) { /* ... preset button logic ... */
-         presetButtonContainer.addEventListener('click', (event) => {
-            if (event.target.classList.contains('preset-button') && event.target.dataset.preset) {
-                const presetName = event.target.dataset.preset;
-                log(`Applying preset: ${presetName}`);
-                applyWeightPreset(presetName);
-                presetButtonContainer.querySelectorAll('.preset-button').forEach(btn => {
-                    btn.classList.toggle('active', btn === event.target);
-                });
-            }
-        });
+         presetButtonContainer.addEventListener('click', (event) => { if (event.target.classList.contains('preset-button') && event.target.dataset.preset) { const presetName = event.target.dataset.preset; log(`Applying preset: ${presetName}`); applyWeightPreset(presetName); presetButtonContainer.querySelectorAll('.preset-button').forEach(btn => { btn.classList.toggle('active', btn === event.target); }); } });
     }
      if (resetButton) { /* ... reset button logic ... */
-         resetButton.addEventListener('click', () => {
-            log("Resetting weights to default.");
-            const defaultPresetName = 'balanced';
-            applyWeightPreset(defaultPresetName);
-            presetButtonContainer?.querySelectorAll('.preset-button.active').forEach(btn => btn.classList.remove('active'));
-            const balancedBtn = presetButtonContainer?.querySelector(`[data-preset="${defaultPresetName}"]`);
-            if (balancedBtn) balancedBtn.classList.add('active');
-        });
+         resetButton.addEventListener('click', () => { log("Resetting weights to default."); const defaultPresetName = 'balanced'; applyWeightPreset(defaultPresetName); presetButtonContainer?.querySelectorAll('.preset-button.active').forEach(btn => btn.classList.remove('active')); const balancedBtn = presetButtonContainer?.querySelector(`[data-preset="${defaultPresetName}"]`); if (balancedBtn) balancedBtn.classList.add('active'); });
      }
     if (sliders.length > 0) { /* ... slider logic ... */
         initializeSliderValues();
-        sliders.forEach(slider => {
-            const valueDisplay = document.getElementById(`${slider.id}-value`);
-            const weightKey = slider.dataset.weightKey;
-            if (!valueDisplay || !weightKey) return;
-            slider.addEventListener('input', () => {
-                const newValue = parseFloat(slider.value);
-                valueDisplay.textContent = newValue.toFixed(slider.step.includes('.') ? slider.step.split('.')[1].length : 0);
-                updateConfig(`scoring_weights.${weightKey}`, newValue);
-                debouncedRecalculate();
-            });
-        });
+        sliders.forEach(slider => { const valueDisplay = document.getElementById(`${slider.id}-value`); const weightKey = slider.dataset.weightKey; if (!valueDisplay || !weightKey) return; slider.addEventListener('input', () => { const newValue = parseFloat(slider.value); valueDisplay.textContent = newValue.toFixed(slider.step.includes('.') ? slider.step.split('.')[1].length : 0); updateConfig(`scoring_weights.${weightKey}`, newValue); debouncedRecalculate(); }); });
     }
 }
 
-/**
- * Applies a scoring weight preset.
- */
+/** Applies a scoring weight preset. */
 function applyWeightPreset(presetName) {
     // (Function remains the same)
     const preset = presetName === 'balanced' ? getDefaultWeights() : scoringPresets[presetName];
@@ -340,29 +318,10 @@ function applyWeightPreset(presetName) {
     handleRecalculation(`preset apply (${presetName})`);
 }
 
-/**
- * Sets the initial values of the weight sliders.
- */
+/** Sets the initial values of the weight sliders. */
 function initializeSliderValues() {
     // (Function remains the same)
     const sliders = document.querySelectorAll('.weight-slider');
-    sliders.forEach(slider => {
-        const weightKey = slider.dataset.weightKey;
-        const valueDisplay = document.getElementById(`${slider.id}-value`);
-        if (!weightKey || !valueDisplay) return;
-        const getNestedValue = (obj, path) => path.split('.').reduce((o, k) => (o && o[k] !== undefined) ? o[k] : undefined, obj);
-        const currentValue = getNestedValue(config.scoring_weights, weightKey);
-        if (currentValue !== undefined) {
-            const numValue = parseFloat(currentValue);
-            slider.value = numValue;
-            const decimalPlaces = slider.step.includes('.') ? slider.step.split('.')[1].length : 0;
-            valueDisplay.textContent = numValue.toFixed(decimalPlaces);
-        } else {
-            log(`Warning: Weight key "${weightKey}" not found in config for slider ${slider.id}. Using slider default.`);
-             const numValue = parseFloat(slider.value);
-             const decimalPlaces = slider.step.includes('.') ? slider.step.split('.')[1].length : 0;
-            valueDisplay.textContent = numValue.toFixed(decimalPlaces);
-        }
-    });
+    sliders.forEach(slider => { const weightKey = slider.dataset.weightKey; const valueDisplay = document.getElementById(`${slider.id}-value`); if (!weightKey || !valueDisplay) return; const getNestedValue = (obj, path) => path.split('.').reduce((o, k) => (o && o[k] !== undefined) ? o[k] : undefined, obj); const currentValue = getNestedValue(config.scoring_weights, weightKey); if (currentValue !== undefined) { const numValue = parseFloat(currentValue); slider.value = numValue; const decimalPlaces = slider.step.includes('.') ? slider.step.split('.')[1].length : 0; valueDisplay.textContent = numValue.toFixed(decimalPlaces); } else { log(`Warning: Weight key "${weightKey}" not found in config for slider ${slider.id}. Using slider default.`); const numValue = parseFloat(slider.value); const decimalPlaces = slider.step.includes('.') ? slider.step.split('.')[1].length : 0; valueDisplay.textContent = numValue.toFixed(decimalPlaces); } });
      log("Slider values initialized from config.");
 }

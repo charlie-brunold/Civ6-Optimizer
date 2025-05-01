@@ -7,18 +7,10 @@ import { log } from './utils.js'; // Import log for debugging updates
 
 // --- Default Scoring Weights ---
 const defaultScoringWeights = {
-    yields: {
-        food: 1.0,
-        production: 1.0,
-        gold: 0.5
-    },
+    yields: { food: 1.0, production: 1.0, gold: 0.5 },
     bonuses: {
-        balance_factor: 0.5,
-        resource_strategic_factor: 1.0,
-        resource_luxury_factor: 1.0,
-        fresh_water: 10.0,
-        appeal_positive_factor: 0.5,
-        goody_hut: 15.0
+        balance_factor: 0.5, resource_strategic_factor: 1.0, resource_luxury_factor: 1.0,
+        fresh_water: 10.0, appeal_positive_factor: 0.5, goody_hut: 15.0
     }
 };
 
@@ -42,13 +34,18 @@ export const config = {
     showScoreHeatmap: false,
     showBoat: true,
     panSpeed: 0.5,
-    debug: false,
-    // **** ADDED hoverRadius ****
-    hoverRadius: 1, // Default radius for hover effect (0 = center only, 1 = adjacent, etc.)
-    // ***************************
+    debug: false, // General debug flag (if used elsewhere)
+    hoverRadius: 1, // Default radius for hover effect
+    // **** ADDED Debug Mode Config ****
+    isDebugModeEnabled: false, // Is the debug mode available to be triggered? (Controlled by UI toggle)
+    // ********************************
     scoring_weights: JSON.parse(JSON.stringify(defaultScoringWeights)),
     tier_percentiles: JSON.parse(JSON.stringify(defaultTierPercentiles))
 };
+
+// --- Debug Mode Specific Constants ---
+export const DEBUG_CENTER_HIGHLIGHT_COLOR = 0xff00ff; // Magenta highlight for the clicked center
+export const DEBUG_CENTER_HIGHLIGHT_INTENSITY = 0.7;
 
 // --- Heatmap Configuration ---
 export const heatmapColors = [
@@ -91,8 +88,6 @@ export const tierConfig = {
 // --- Functions ---
 /**
  * Updates a configuration value, supporting nested keys.
- * @param {string} key - The configuration key (e.g., 'showResources', 'scoring_weights.yields.food').
- * @param {*} value - The new value.
  */
 export function updateConfig(key, value) {
     const keys = key.split('.');

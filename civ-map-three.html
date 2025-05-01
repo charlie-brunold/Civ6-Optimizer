@@ -6,86 +6,49 @@
     <title>Civilization Map 3D Visualization (Modules)</title>
     <link rel="stylesheet" href="civ-map-three.css">
     <style>
-        /* Basic styles needed before CSS loads or if CSS fails */
+        /* Basic styles */
         body { margin: 0; overflow: hidden; background-color: #f0f0f0; font-family: sans-serif; }
-        #map-container { width: 100vw; height: 100vh; display: block; background-color: #111; position: relative; /* Needed for overlay */}
-        .error-message { /* Basic error styling */
-            color: red; background: white; padding: 1em; border: 1px solid red;
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            z-index: 1000; text-align: center;
-         }
-        /* Basic loading overlay style */
-        #loading-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.7); color: white;
-            display: flex; justify-content: center; align-items: center;
-            z-index: 100; /* Ensure it's above map content */
-            font-size: 1.2em;
-        }
-        /* Add styles for the new weight controls section */
-        .weights-controls {
-            border-top: 1px solid #ccc;
-            margin-top: 10px;
-            padding-top: 10px;
-        }
-        .weights-header {
-            cursor: pointer;
+        #map-container { width: 100vw; height: 100vh; display: block; background-color: #111; position: relative; }
+        .error-message { color: red; background: white; padding: 1em; border: 1px solid red; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; text-align: center; }
+        #loading-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); color: white; display: flex; justify-content: center; align-items: center; z-index: 100; font-size: 1.2em; }
+
+        /* Weight controls styles */
+        .weights-controls { border-top: 1px solid #ccc; margin-top: 10px; padding-top: 10px; }
+        .weights-header { cursor: pointer; font-weight: bold; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .weights-header::after { content: '▲'; font-size: 0.8em; margin-left: 5px; }
+        .weights-header.collapsed::after { content: '▼'; }
+        .weights-content { display: block; padding-left: 10px; }
+        .weights-content.hidden { display: none; }
+        .weight-slider-group { margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+        .weight-slider-group label { min-width: 100px; font-size: 0.9em; }
+        .weight-slider-group input[type="range"] { flex-grow: 1; cursor: pointer; }
+        .weight-slider-group .slider-value { min-width: 30px; text-align: right; font-size: 0.9em; font-family: monospace; }
+        .preset-buttons button { margin-right: 5px; margin-bottom: 5px; }
+
+        /* Radius input style */
+        .radius-input-label { display: inline-flex; align-items: center; gap: 5px; margin-left: 15px; }
+        .radius-input-label input[type="number"] { width: 50px; padding: 2px 5px; }
+
+        /* **** ADDED: Debug Mode Overlay Style **** */
+        #debug-mode-overlay {
+            position: absolute;
+            top: 10px; /* Position below header */
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 0, 255, 0.7); /* Magenta background */
+            color: white;
+            padding: 5px 15px;
+            border-radius: 5px;
+            font-size: 0.9em;
             font-weight: bold;
-            margin-bottom: 5px;
-            display: flex; /* Use flexbox */
-            justify-content: space-between; /* Space between title and toggle */
-            align-items: center; /* Align items vertically */
+            z-index: 101; /* Above loading overlay if needed, below tooltip */
+            display: none; /* Hidden by default */
+            pointer-events: none; /* Allow clicks through */
         }
-        .weights-header::after { /* Simple indicator for collapsible */
-            content: '▲'; /* Start expanded */
-            font-size: 0.8em;
-            margin-left: 5px;
-        }
-        .weights-header.collapsed::after {
-            content: '▼'; /* Change when collapsed */
-        }
-        .weights-content {
-            /* Start expanded */
-            display: block;
-            padding-left: 10px; /* Indent content */
-        }
-        .weights-content.hidden {
-            display: none;
-        }
-        .weight-slider-group {
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 10px; /* Space between label, slider, value */
-        }
-        .weight-slider-group label {
-            min-width: 100px; /* Align labels */
-            font-size: 0.9em;
-        }
-        .weight-slider-group input[type="range"] {
-            flex-grow: 1; /* Slider takes remaining space */
-            cursor: pointer;
-        }
-        .weight-slider-group .slider-value {
-            min-width: 30px; /* Space for value readout */
-            text-align: right;
-            font-size: 0.9em;
-            font-family: monospace;
-        }
-        .preset-buttons button {
-            margin-right: 5px;
-            margin-bottom: 5px; /* Spacing for buttons */
-        }
-        /* Style for the new radius input */
-        .radius-input-label {
-            display: inline-flex; /* Align items nicely */
-            align-items: center;
-            gap: 5px; /* Space between label and input */
-            margin-left: 15px; /* Spacing from other controls */
-        }
-        .radius-input-label input[type="number"] {
-            width: 50px; /* Adjust width as needed */
-            padding: 2px 5px;
+        /* ****************************************** */
+        /* Style for the debug mode toggle */
+        .debug-toggle-label {
+            margin-left: 15px; /* Spacing */
         }
 
     </style>
@@ -113,6 +76,9 @@
                         Hover Radius:
                         <input type="number" id="hover-radius-input" min="0" max="5" step="1" title="Set hover effect radius (0=center only)">
                     </label>
+                    <label class="checkbox-label debug-toggle-label">
+                        <input type="checkbox" id="toggle-debug-mode"> Enable Territory Visualization Mode
+                    </label>
                     </div>
 
                 <div class="control-group">
@@ -134,7 +100,7 @@
                 <div class="control-group weights-controls">
                     <div class="weights-header" id="weights-header">
                         <span>Scoring Weights</span>
-                        </div>
+                    </div>
                     <div class="weights-content" id="weights-content">
                         <div class="preset-buttons" id="preset-buttons">
                             <span>Presets:</span>
@@ -145,7 +111,6 @@
                             <button class="control-button preset-button" data-preset="science">Science/Culture (Appeal)</button>
                             <button class="control-button preset-button" id="reset-weights" title="Reset to default weights">Reset to Default</button>
                         </div>
-
                         <div class="weight-slider-group">
                             <label for="weight-food">Food:</label>
                             <input type="range" id="weight-food" class="weight-slider" data-weight-key="yields.food" min="0" max="3" step="0.1">
@@ -192,6 +157,7 @@
         </div>
 
         <div id="map-container">
+            <div id="debug-mode-overlay">TERRITORY VISUALIZATION MODE ACTIVE (ESC to exit)</div>
             <div id="loading-overlay">
                  <div id="loading-content" style="text-align: center;">
                     <div id="loading-text" style="margin-bottom: 15px;">Loading Map Data... 0%</div>
@@ -265,7 +231,7 @@
     <script type="module" src="./modules/main.js"></script>
 
     <script>
-        // Simple diagnostic to check for canvas and data loading after a delay
+        // Simple diagnostic
         setTimeout(() => {
             const canvas = document.querySelector('#map-container canvas');
             if (!canvas) console.warn("Diagnostic: Canvas element not found in map container after delay.");
