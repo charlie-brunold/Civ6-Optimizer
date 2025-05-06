@@ -44,7 +44,7 @@ export function setMapData(data) {
         maxScore = initialMax === -Infinity ? 100 : initialMax;
 
         // Avoid min === max for lerp in heatmap
-        if (minScore === maxScore && scores.length > 0) {
+        if (minScore === maxScore && mapData.tiles.filter(t => t.is_workable && typeof t.normalized_score === 'number').length > 0) { // Check if there are actually scores
              maxScore += 1; // Add a small buffer if all scores are identical
         }
         log(`Initial min/max scores set from data: ${minScore}/${maxScore}`);
@@ -77,15 +77,20 @@ export function setMinMaxScores(newMin, newMax) {
 export let hexagons = [];
 export let resourceMarkers = [];
 export let tierLabels = [];
+export let districtIcons = []; // **** ADDED: Array for district icons ****
+
 export function clearMapObjects() {
-    // Consider disposing geometry/materials here if not done elsewhere
+    // Hexagons, Resource Markers, and Tier Labels are cleared in mapElements.js
+    // We only need to clear the state arrays here.
     hexagons = [];
     resourceMarkers = [];
     tierLabels = [];
+    districtIcons = []; // **** ADDED: Clear district icons array ****
 }
 export function addHexagon(hex) { hexagons.push(hex); }
 export function addResourceMarker(marker) { resourceMarkers.push(marker); }
 export function addTierLabel(label) { tierLabels.push(label); }
+export function addDistrictIcon(icon) { districtIcons.push(icon); } // **** ADDED: Function to add district icon ****
 
 // --- Interaction State ---
 export let raycaster = new THREE.Raycaster();
