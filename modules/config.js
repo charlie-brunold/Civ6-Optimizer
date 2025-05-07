@@ -39,7 +39,7 @@ export const config = {
     isDebugModeEnabled: false, // Is the debug mode available to be triggered? (Controlled by UI toggle)
     showRecommendedDistrictIcons: true, // Toggle for district icon visibility
     districtIconScale: 0.95, // Default scale for district icons (adjust as needed)
-    districtIconYOffset: 1.45, // Offset above the hex surface (adjust as needed)
+    districtIconYOffset: 1.25, // Offset above the hex surface (adjust as needed)
     scoring_weights: JSON.parse(JSON.stringify(defaultScoringWeights)),
     tier_percentiles: JSON.parse(JSON.stringify(defaultTierPercentiles))
 };
@@ -87,7 +87,6 @@ export const tierConfig = {
 };
 
 // **** UPDATED: District Icon Paths with lowercase, no-space keys ****
-// These keys should now match the `formatted_district` string from your Python script
 export const districtIconPaths = {
     "campus": "assets/icons/campus.png",
     "holysite": "assets/icons/holysite.png",
@@ -100,7 +99,8 @@ export const districtIconPaths = {
     "aqueduct": "assets/icons/aqueduct.png",
     "waterpark": "assets/icons/waterpark.png",
     "dam": "assets/icons/dam.png",
-    "canal": "assets/icons/canal.png"
+    "canal": "assets/icons/canal.png",
+    "citycenter": "assets/icons/citycenter.png" // **** ADDED: City Center Icon Path ****
     // Add any other districts your optimizer might recommend, using their lowercase, no-space names as keys
 };
 // ***********************************

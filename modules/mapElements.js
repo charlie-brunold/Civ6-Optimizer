@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three';
 import * as state from './state.js';
-import { config, terrainColors, resourceStyles, tierStyles, defaultColor, heatmapColors, heatmapNeutralColor, districtIconPaths } from './config.js'; // Import districtIconPaths
+import { config, terrainColors, resourceStyles, tierStyles, defaultColor, heatmapColors, heatmapNeutralColor, districtIconPaths } from './config.js';
 import { calculateElevation, log } from './utils.js';
 import { buildHexagonCoordMap } from './interaction.js';
 
@@ -42,7 +42,7 @@ function createHexagonMesh(tile) {
     const terrainColor = terrainColors[tile.terrain] || defaultColor;
     const originalColor = new THREE.Color(terrainColor);
     const material = new THREE.MeshStandardMaterial({
-        color: originalColor.clone(), // Ensure originalColor is cloned
+        color: originalColor.clone(),
         metalness: 0.1,
         roughness: 0.8,
         flatShading: false,
@@ -56,7 +56,7 @@ function createHexagonMesh(tile) {
     const col = tile.x - state.mapData.metadata.min_x;
     const row = gridHeight - (tile.y - state.mapData.metadata.min_y);
     const hexWidth = Math.sqrt(3) * config.hexRadius;
-    const hexLayoutHeight = 2 * config.hexRadius; // Use consistent naming for layout calculation
+    const hexLayoutHeight = 2 * config.hexRadius;
     let xPos = col * hexWidth;
     let zPos = row * (hexLayoutHeight * 0.75);
     if (row % 2 !== 0) xPos += hexWidth / 2;
@@ -165,35 +165,29 @@ function createOrUpdateTierLabel(tile, position, existingSprite = null) {
 }
 
 /**
- * Creates a sprite for a recommended district icon.
- * @param {string} districtTypeFormatted - The formatted type of the district (e.g., "entertainmentcomplex").
+ * Creates a sprite for a recommended district icon or city center.
+ * @param {string} iconKey - The key for the icon (e.g., "entertainmentcomplex", "citycenter").
  * @param {THREE.Vector3} hexWorldPosition - The world position of the hexagon mesh.
  * @param {object} tileData - The data object for the tile.
  * @returns {THREE.Sprite | null} The created sprite or null if path not found.
  */
-export function createDistrictIconSprite(districtTypeFormatted, hexWorldPosition, tileData) {
-    // districtTypeFormatted is already lowercase and has no spaces (e.g., "entertainmentcomplex")
-    const iconFilename = districtTypeFormatted + '.png';
-    const iconPath = `assets/icons/${iconFilename}`;
+export function createDistrictIconSprite(iconKey, hexWorldPosition, tileData) {
+    const iconPath = districtIconPaths[iconKey]; // Uses the already formatted key
 
-    // Validate against the districtIconPaths (which now uses formatted keys)
-    if (!districtIconPaths[districtTypeFormatted]) {
-         log(`Warning: Icon path for district type "${districtTypeFormatted}" (resolved to ${iconPath}) not found in districtIconPaths. Check config.js and icon filename.`);
-         // return null; // Optionally return null if strict matching is required. For now, we'll try to load.
+    if (!iconPath) {
+         log(`Warning: Icon path for key "${iconKey}" not found in districtIconPaths. Check config.js.`);
+         return null;
     }
 
     try {
         const texture = textureLoader.load(
             iconPath,
-            // onLoad callback
             function (loadedTexture) {
-                log(`Successfully loaded district icon texture: ${iconPath}`);
+                log(`Successfully loaded icon texture: ${iconPath}`);
             },
-            // onProgress callback (optional)
             undefined,
-            // onError callback
             function (err) {
-                log(`Error loading district icon texture ${iconPath}:`, err);
+                log(`Error loading icon texture ${iconPath}:`, err);
             }
         );
 
@@ -206,8 +200,8 @@ export function createDistrictIconSprite(districtTypeFormatted, hexWorldPosition
         });
 
         const sprite = new THREE.Sprite(material);
-
         const elevation = calculateElevation(tileData);
+        // Position slightly above the center of the hex's top face.
         const yPosition = hexWorldPosition.y + (config.hexHeight + elevation) * 0.5 + config.districtIconYOffset;
 
         sprite.position.set(
@@ -220,14 +214,12 @@ export function createDistrictIconSprite(districtTypeFormatted, hexWorldPosition
 
         sprite.userData = {
             tile: tileData,
-            districtType: districtTypeFormatted, // Store the formatted name
+            districtType: iconKey, // Store the key used (e.g., "citycenter" or "campus")
             isDistrictIcon: true
         };
-        // log(`Created district icon for ${districtTypeFormatted} at ${tileData.x},${tileData.y}`); // Log moved to onLoad for texture
         return sprite;
     } catch (error) {
-        // This catch might not be effective for textureLoader errors, which are async.
-        log(`Generic error creating district icon sprite for ${districtTypeFormatted} at ${iconPath}:`, error);
+        log(`Generic error creating icon sprite for ${iconKey} at ${iconPath}:`, error);
         return null;
     }
 }
@@ -252,7 +244,7 @@ export function clearMapElements() {
                          label.material.dispose();
                      }
                  }
-                 if (obj.userData.districtIcon) {
+                 if (obj.userData.districtIcon) { // This will remove either city center or district icon
                     const districtIcon = obj.userData.districtIcon;
                     state.scene.remove(districtIcon);
                     if (districtIcon.material) {
@@ -316,6 +308,9 @@ export function createMapVisualization(data) {
         state.controls.update();
     }
 
+    // REMOVED: Explicit fetching of city_center_x, city_center_y from metadata for icon placement.
+    // The city center icon will now be placed if a tile has `recommended_district: "citycenter"`.
+
     state.mapData.tiles.forEach((tile, index) => {
         if (!tile || typeof tile.x === 'undefined' || typeof tile.y === 'undefined') {
             log(`Warning: Skipping invalid tile data at index ${index}`);
@@ -340,25 +335,27 @@ export function createMapVisualization(data) {
                 state.addResourceMarker(marker);
             }
 
-            // **** UPDATED: Check for 'recommended_district' (lowercase from Python) ****
-            if (tile.recommended_district) { // Changed from recommended_district_type
-                // tile.recommended_district now contains the formatted name, e.g., "entertainmentcomplex"
-                const districtIconSprite = createDistrictIconSprite(tile.recommended_district, hexMesh.position, tile);
-                if (districtIconSprite) {
-                    state.scene.add(districtIconSprite);
-                    state.addDistrictIcon(districtIconSprite);
-                    hexMesh.userData.districtIcon = districtIconSprite;
-                    districtIconSprite.userData.hexagon = hexMesh;
+            // Create District/City Center Icon if recommended_district field is present
+            if (tile.recommended_district) {
+                // tile.recommended_district will contain the formatted name (e.g., "citycenter", "campus")
+                const iconSprite = createDistrictIconSprite(tile.recommended_district, hexMesh.position, tile);
+                if (iconSprite) {
+                    state.scene.add(iconSprite);
+                    state.addDistrictIcon(iconSprite);
+                    hexMesh.userData.districtIcon = iconSprite; // Store reference on the hex
+                    iconSprite.userData.hexagon = hexMesh; // Link icon back to hex
+                    if (tile.recommended_district === "citycenter") {
+                        log(`City Center icon placed at (${tile.x}, ${tile.y}) via recommended_district field.`);
+                    }
                 }
             }
-            // ***********************************************************************
 
         } catch (e) {
             log(`Error creating elements for tile (${tile.x}, ${tile.y}):`, e);
             console.error("Tile creation error:", e, tile);
         }
     });
-    log(`Created ${state.hexagons.length} hexagons, ${state.resourceMarkers.length} markers, ${state.tierLabels.length} labels, and ${state.districtIcons.length} district icons.`);
+    log(`Created ${state.hexagons.length} hexagons, ${state.resourceMarkers.length} markers, ${state.tierLabels.length} labels, and ${state.districtIcons.length} district/city icons.`);
 
     buildHexagonCoordMap();
     updateMapDisplay();
@@ -482,8 +479,11 @@ export function updateMapDisplay() {
 
         const districtIcon = hex.userData.districtIcon;
         if (districtIcon) {
-            // Visibility depends on the hex being visible AND the master toggle for district icons
+            // District icons (including city center if it's handled this way) are visible if:
+            // 1. The main toggle for district icons is ON.
+            // 2. The hexagon itself is visible (not filtered out by tier, etc.).
             districtIcon.visible = isVisible && config.showRecommendedDistrictIcons;
+            
             if (!hex.userData.animating) { 
                 const iconYPosition = yPos + (config.hexHeight + elevation) * 0.5 + config.districtIconYOffset;
                 districtIcon.position.y = iconYPosition;
