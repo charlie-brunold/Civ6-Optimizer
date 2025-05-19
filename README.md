@@ -96,23 +96,6 @@ Map data should be in CSV format. Key columns used by the `csv_to_three_converte
 
 Place your CSV file (e.g., in the `datasets` directory) and run the conversion script (Step 2 in "Running the Application") to generate the necessary `civ_map_data.json`. Sample sample data files have been provided for you to explore if exporting your own map proves infeasible.
 
-## Development Roadmap
-
-This project is being developed as part of a BUAD 313 Operations Management class with the following planned features:
-
-### Short-term Goals
-- **Gurobi Optimization Engine**: Implement mathematical optimization using Gurobi to calculate optimal district placement for cities.
-- Add city placement recommendation overlays.
-- City radius overlays to show workable tiles.
-
-### Mid-term Goals
-- District adjacency bonus visualization.
-
-### Long-term Goals
-- Interactive district placement tool with real-time adjacency calculations.
-- Optimization for specific victory types (Science, Culture, etc.).
-- Support for importing maps directly from game save files.
-
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request or open an Issue to discuss potential changes or additions.
