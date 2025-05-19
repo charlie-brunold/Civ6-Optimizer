@@ -3,162 +3,199 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Civilization Map 3D Visualization (Modules)</title>
+    <title>Civilization Map 3D Visualization (Improved UI)</title>
     <link rel="stylesheet" href="civ-map-three.css">
     <style>
-        /* Basic styles */
-        body { margin: 0; overflow: hidden; background-color: #f0f0f0; font-family: sans-serif; }
-        #map-container { width: 100vw; height: 100vh; display: block; background-color: #111; position: relative; }
-        .error-message { color: red; background: white; padding: 1em; border: 1px solid red; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; text-align: center; }
-        #loading-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); color: white; display: flex; justify-content: center; align-items: center; z-index: 100; font-size: 1.2em; }
+        /*
+            These styles are for the collapsible sections within the sidebar.
+            They are included here for self-containment of the HTML example,
+            but ideally, they would be moved to civ-map-three.css.
+        */
+        .sidebar-section .section-header {
+            background-color: #e9ecef; /* A slightly lighter, more modern grey */
+            color: #343a40; /* Darker text for better contrast */
+            cursor: pointer;
+            padding: 12px 15px; /* Increased padding for better touch targets and visual balance */
+            border-top: 1px solid #dee2e6;
+            /* border-bottom: 1px solid #dee2e6; Removed to avoid double border with next section's top border */
+            margin-top: -1px; /* Overlap borders */
+            font-weight: 600; /* Slightly bolder */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s ease;
+        }
+        .sidebar-section .section-header:hover {
+            background-color: #dde2e6; /* Hover effect */
+        }
 
-        /* Weight controls styles */
-        .weights-controls { border-top: 1px solid #ccc; margin-top: 10px; padding-top: 10px; }
-        .weights-header { cursor: pointer; font-weight: bold; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
-        .weights-header::after { content: '▲'; font-size: 0.8em; margin-left: 5px; }
-        .weights-header.collapsed::after { content: '▼'; }
-        .weights-content { display: block; padding-left: 10px; }
-        .weights-content.hidden { display: none; }
-        .weight-slider-group { margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
-        .weight-slider-group label { min-width: 100px; font-size: 0.9em; }
-        .weight-slider-group input[type="range"] { flex-grow: 1; cursor: pointer; }
-        .weight-slider-group .slider-value { min-width: 30px; text-align: right; font-size: 0.9em; font-family: monospace; }
-        .preset-buttons button { margin-right: 5px; margin-bottom: 5px; }
-
-        /* Radius input style */
-        .radius-input-label { display: inline-flex; align-items: center; gap: 5px; margin-left: 15px; }
-        .radius-input-label input[type="number"] { width: 50px; padding: 2px 5px; }
-
-        /* **** ADDED: Debug Mode Overlay Style **** */
-        #debug-mode-overlay {
-            position: absolute;
-            top: 10px; /* Position below header */
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: rgba(255, 0, 255, 0.7); /* Magenta background */
-            color: white;
-            padding: 5px 15px;
-            border-radius: 5px;
+        .sidebar-section .section-header::after {
+            content: '\\25B2'; /* Up arrow (▲) */
             font-size: 0.9em;
-            font-weight: bold;
-            z-index: 101; /* Above loading overlay if needed, below tooltip */
-            display: none; /* Hidden by default */
-            pointer-events: none; /* Allow clicks through */
+            transition: transform 0.25s ease-in-out;
         }
-        /* ****************************************** */
-        /* Style for the debug mode toggle */
-        .debug-toggle-label {
-            margin-left: 15px; /* Spacing */
+        .sidebar-section .section-header.collapsed::after {
+            transform: rotate(180deg); /* Down arrow (▼) */
+        }
+        .sidebar-section .section-content {
+            padding: 10px 15px;
+            background-color: #ffffff; /* White background for content area */
+            display: block;
+            max-height: 700px; /* Generous max-height for content, adjust as needed */
+            overflow: hidden;
+            transition: max-height 0.3s ease-in-out, padding 0.3s ease-in-out, opacity 0.2s ease-in-out 0.1s;
+            opacity: 1;
+            border-top: 1px solid #dee2e6; /* Separator from header */
+        }
+        .sidebar-section .section-content.hidden {
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            opacity: 0;
+            border-top: none; /* Remove border when hidden */
+            transition-delay: 0s; /* Opacity transition happens immediately on hide */
         }
 
+        /* Styles for weight sliders and preset buttons (can also be moved to main CSS) */
+        .weight-slider-group { margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+        .weight-slider-group label { flex-basis: 130px; flex-shrink: 0; font-size: 0.88em; color: #495057; }
+        .weight-slider-group input[type="range"] { flex-grow: 1; cursor: pointer; }
+        .weight-slider-group .slider-value { min-width: 38px; text-align: right; font-size: 0.88em; font-family: monospace; background-color: #e9ecef; padding: 3px 6px; border-radius: 3px;}
+
+        .preset-buttons { margin-bottom: 15px; }
+        .preset-buttons span { display: block; margin-bottom: 8px; font-weight: 500; color: #343a40; }
+        .preset-buttons button { margin-right: 6px; margin-bottom: 6px; }
+
+        .radius-input-label { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 0.9em; }
+        .radius-input-label input[type="number"] { width: 55px; padding: 5px 7px; border: 1px solid #ced4da; border-radius: 4px; }
+
+        /* Debug mode overlay (original style is fine, minor adjustment for consistency if needed) */
+        #debug-mode-overlay {
+            position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+            background-color: rgba(128, 0, 128, 0.75); color: white; padding: 6px 15px;
+            border-radius: 5px; font-size: 0.9em; font-weight: bold; z-index: 101;
+            display: none; pointer-events: none;
+        }
     </style>
 </head>
 <body>
-    <div class="visualization-container">
+    <div class="top-bar">
+        <button id="toggle-sidebar-button" title="Toggle Controls Panel">☰</button>
+        <h1>Civilization VI Map Optimizer</h1>
+    </div>
 
-        <div class="header">
-            <h1>Civilization 3D Map Visualization</h1>
-            <div class="controls">
-                <div class="control-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="toggle-tier-labels" checked> Show Tier Labels
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="toggle-resources" checked> Show Resources
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="toggle-district-icons" checked> Show District Icons
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="toggle-elevation" checked> Show Elevation
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="toggle-heatmap"> Show Score Heatmap
-                    </label>
-                    <label class="radius-input-label" for="hover-radius-input">
-                        Hover Radius:
-                        <input type="number" id="hover-radius-input" min="0" max="5" step="1" title="Set hover effect radius (0=center only)">
-                    </label>
-                    <label class="checkbox-label debug-toggle-label">
-                        <input type="checkbox" id="toggle-debug-mode"> Enable Territory Visualization Mode
-                    </label>
-                    </div>
-
-                <div class="control-group">
-                     <button id="highlight-top-tiles" class="control-button" title="Highlight S and A tier tiles">Highlight Top Tiles</button>
-                 </div>
-
-                <div class="control-group tier-filters">
-                    <span>Filter Tiers:</span>
-                    <label><input type="checkbox" class="tier-checkbox" value="S" checked> S</label>
-                    <label><input type="checkbox" class="tier-checkbox" value="A" checked> A</label>
-                    <label><input type="checkbox" class="tier-checkbox" value="B" checked> B</label>
-                    <label><input type="checkbox" class="tier-checkbox" value="C" checked> C</label>
-                    <label><input type="checkbox" class="tier-checkbox" value="D" checked> D</label>
-                    <label><input type="checkbox" class="tier-checkbox" value="E" checked> E</label>
-                    <label><input type="checkbox" class="tier-checkbox" value="F" checked> F</label>
-                    <button id="toggle-all-tiers" class="control-button" title="Select or deselect all tiers">Deselect All Tiers</button>
+    <div id="control-sidebar" class="sidebar">
+        <div class="sidebar-content-wrapper"> <div class="sidebar-section" id="section-display-options">
+                <div class="section-header" data-section-id="display-options-content">
+                    <span>Display Options</span>
                 </div>
-
-                <div class="control-group weights-controls">
-                    <div class="weights-header" id="weights-header">
-                        <span>Scoring Weights</span>
+                <div class="section-content" id="display-options-content">
+                    <div class="control-item">
+                        <input type="checkbox" id="toggle-tier-labels" checked>
+                        <label for="toggle-tier-labels">Show Tier Labels</label>
                     </div>
-                    <div class="weights-content" id="weights-content">
-                        <div class="preset-buttons" id="preset-buttons">
-                            <span>Presets:</span>
-                            <button class="control-button preset-button" data-preset="balanced">Balanced</button>
-                            <button class="control-button preset-button" data-preset="production">Production Focus</button>
-                            <button class="control-button preset-button" data-preset="food_growth">Food/Growth Focus</button>
-                            <button class="control-button preset-button" data-preset="gold">Gold Focus</button>
-                            <button class="control-button preset-button" data-preset="science">Science/Culture (Appeal)</button>
-                            <button class="control-button preset-button" id="reset-weights" title="Reset to default weights">Reset to Default</button>
-                        </div>
-                        <div class="weight-slider-group">
-                            <label for="weight-food">Food:</label>
-                            <input type="range" id="weight-food" class="weight-slider" data-weight-key="yields.food" min="0" max="3" step="0.1">
-                            <span class="slider-value" id="weight-food-value">1.0</span>
-                        </div>
-                        <div class="weight-slider-group">
-                            <label for="weight-production">Production:</label>
-                            <input type="range" id="weight-production" class="weight-slider" data-weight-key="yields.production" min="0" max="3" step="0.1">
-                            <span class="slider-value" id="weight-production-value">1.0</span>
-                        </div>
-                        <div class="weight-slider-group">
-                            <label for="weight-gold">Gold:</label>
-                            <input type="range" id="weight-gold" class="weight-slider" data-weight-key="yields.gold" min="0" max="3" step="0.1">
-                            <span class="slider-value" id="weight-gold-value">0.5</span>
-                        </div>
-                        <div class="weight-slider-group">
-                            <label for="weight-appeal">Appeal Bonus:</label>
-                            <input type="range" id="weight-appeal" class="weight-slider" data-weight-key="bonuses.appeal_positive_factor" min="0" max="3" step="0.1">
-                            <span class="slider-value" id="weight-appeal-value">0.5</span>
-                        </div>
-                         <div class="weight-slider-group">
-                            <label for="weight-freshwater">Fresh Water Bonus:</label>
-                            <input type="range" id="weight-freshwater" class="weight-slider" data-weight-key="bonuses.fresh_water" min="0" max="20" step="1">
-                            <span class="slider-value" id="weight-freshwater-value">10</span>
-                        </div>
-                        <div class="weight-slider-group">
-                            <label for="weight-resource-strategic">Strategic Res. Bonus:</label>
-                            <input type="range" id="weight-resource-strategic" class="weight-slider" data-weight-key="bonuses.resource_strategic_factor" min="0" max="3" step="0.1">
-                            <span class="slider-value" id="weight-resource-strategic-value">1.0</span>
-                        </div>
-                         <div class="weight-slider-group">
-                            <label for="weight-resource-luxury">Luxury Res. Bonus:</label>
-                            <input type="range" id="weight-resource-luxury" class="weight-slider" data-weight-key="bonuses.resource_luxury_factor" min="0" max="3" step="0.1">
-                            <span class="slider-value" id="weight-resource-luxury-value">1.0</span>
-                        </div>
-                        <div class="weight-slider-group">
-                            <label for="weight-balance">Yield Balance Bonus:</label>
-                            <input type="range" id="weight-balance" class="weight-slider" data-weight-key="bonuses.balance_factor" min="0" max="2" step="0.1">
-                            <span class="slider-value" id="weight-balance-value">0.5</span>
-                        </div>
+                    <div class="control-item">
+                        <input type="checkbox" id="toggle-resources" checked>
+                        <label for="toggle-resources">Show Resources</label>
+                    </div>
+                    <div class="control-item">
+                        <input type="checkbox" id="toggle-district-icons" checked>
+                        <label for="toggle-district-icons">Show District Icons</label>
+                    </div>
+                    <div class="control-item">
+                        <input type="checkbox" id="toggle-elevation"> <label for="toggle-elevation">Show Elevation</label>
+                    </div>
+                    <div class="control-item">
+                        <input type="checkbox" id="toggle-heatmap">
+                        <label for="toggle-heatmap">Show Score Heatmap</label>
+                    </div>
+                    <div class="control-item radius-input-label">
+                        <label for="hover-radius-input">Hover Radius:</label>
+                        <input type="number" id="hover-radius-input" min="0" max="5" step="1" value="0" title="Set hover effect radius (0=center only)">
+                    </div>
+                    <div class="control-item">
+                        <input type="checkbox" id="toggle-debug-mode">
+                        <label for="toggle-debug-mode">Territory Visualization Mode</label>
                     </div>
                 </div>
             </div>
-        </div>
 
+            <div class="sidebar-section" id="section-filters">
+                <div class="section-header" data-section-id="filters-content">
+                    <span>Tier Filters</span>
+                </div>
+                <div class="section-content" id="filters-content">
+                    <div class="tier-filters">
+                        <label><input type="checkbox" class="tier-checkbox" value="S" checked> S</label>
+                        <label><input type="checkbox" class="tier-checkbox" value="A" checked> A</label>
+                        <label><input type="checkbox" class="tier-checkbox" value="B" checked> B</label>
+                        <label><input type="checkbox" class="tier-checkbox" value="C" checked> C</label>
+                        <label><input type="checkbox" class="tier-checkbox" value="D" checked> D</label>
+                        <label><input type="checkbox" class="tier-checkbox" value="E" checked> E</label>
+                        <label><input type="checkbox" class="tier-checkbox" value="F" checked> F</label>
+                    </div>
+                    <button id="toggle-all-tiers" class="control-button" title="Select or deselect all tiers" style="margin-top:10px;">Deselect All Tiers</button>
+                    <button id="highlight-top-tiles" class="control-button" title="Highlight S and A tier tiles" style="margin-top: 5px;">Highlight Top Tiles</button>
+                </div>
+            </div>
+
+            <div class="sidebar-section" id="section-scoring-weights">
+                <div class="section-header" data-section-id="scoring-weights-content">
+                    <span>Scoring Weights</span>
+                </div>
+                <div class="section-content" id="scoring-weights-content">
+                    <div class="preset-buttons" id="preset-buttons">
+                        <span>Presets:</span>
+                        <button class="control-button preset-button" data-preset="balanced">Balanced</button>
+                        <button class="control-button preset-button" data-preset="production">Production</button>
+                        <button class="control-button preset-button" data-preset="food_growth">Food/Growth</button>
+                        <button class="control-button preset-button" data-preset="gold">Gold</button>
+                        <button class="control-button preset-button" data-preset="science">Science/Culture</button>
+                        <button class="control-button" id="reset-weights" title="Reset to default weights">Reset to Default</button>
+                    </div>
+                    <div class="weight-slider-group">
+                        <label for="weight-food">Food:</label>
+                        <input type="range" id="weight-food" class="weight-slider" data-weight-key="yields.food" min="0" max="3" step="0.1">
+                        <span class="slider-value" id="weight-food-value">1.0</span>
+                    </div>
+                    <div class="weight-slider-group">
+                        <label for="weight-production">Production:</label>
+                        <input type="range" id="weight-production" class="weight-slider" data-weight-key="yields.production" min="0" max="3" step="0.1">
+                        <span class="slider-value" id="weight-production-value">1.0</span>
+                    </div>
+                    <div class="weight-slider-group">
+                        <label for="weight-gold">Gold:</label>
+                        <input type="range" id="weight-gold" class="weight-slider" data-weight-key="yields.gold" min="0" max="3" step="0.1">
+                        <span class="slider-value" id="weight-gold-value">0.5</span>
+                    </div>
+                    <div class="weight-slider-group">
+                        <label for="weight-appeal">Appeal Bonus:</label>
+                        <input type="range" id="weight-appeal" class="weight-slider" data-weight-key="bonuses.appeal_positive_factor" min="0" max="3" step="0.1">
+                        <span class="slider-value" id="weight-appeal-value">0.5</span>
+                    </div>
+                     <div class="weight-slider-group">
+                        <label for="weight-freshwater">Fresh Water Bonus:</label>
+                        <input type="range" id="weight-freshwater" class="weight-slider" data-weight-key="bonuses.fresh_water" min="0" max="20" step="1">
+                        <span class="slider-value" id="weight-freshwater-value">10</span>
+                    </div>
+                    <div class="weight-slider-group">
+                        <label for="weight-resource-strategic">Strategic Res. Bonus:</label>
+                        <input type="range" id="weight-resource-strategic" class="weight-slider" data-weight-key="bonuses.resource_strategic_factor" min="0" max="3" step="0.1">
+                        <span class="slider-value" id="weight-resource-strategic-value">1.0</span>
+                    </div>
+                     <div class="weight-slider-group">
+                        <label for="weight-resource-luxury">Luxury Res. Bonus:</label>
+                        <input type="range" id="weight-resource-luxury" class="weight-slider" data-weight-key="bonuses.resource_luxury_factor" min="0" max="3" step="0.1">
+                        <span class="slider-value" id="weight-resource-luxury-value">1.0</span>
+                    </div>
+                    <div class="weight-slider-group">
+                        <label for="weight-balance">Yield Balance Bonus:</label>
+                        <input type="range" id="weight-balance" class="weight-slider" data-weight-key="bonuses.balance_factor" min="0" max="2" step="0.1">
+                        <span class="slider-value" id="weight-balance-value">0.5</span>
+                    </div>
+                </div>
+            </div>
+        </div> </div> <div id="map-container-wrapper">
         <div id="map-container">
             <div id="debug-mode-overlay">TERRITORY VISUALIZATION MODE ACTIVE (ESC to exit)</div>
             <div id="loading-overlay">
@@ -170,59 +207,49 @@
                     <div id="loading-error" style="display: none; color: #ff6b6b; margin-top: 15px; font-weight: bold;"></div>
                 </div>
             </div>
-            <div id="tooltip" class="tooltip"></div>
-        </div>
+            <div id="tooltip" class="tooltip"></div> </div>
+    </div>
 
-        <div class="legend">
-            <div class="legend-header">
-                <h3>Legend</h3>
-                <span class="legend-toggle" id="legend-toggle">Hide</span>
+    <div class="legend">
+        <div class="legend-header">
+            <h3>Legend</h3>
+            <span class="legend-toggle" id="legend-toggle">Hide</span>
+        </div>
+        <div class="legend-content">
+            <div class="legend-section">
+                <h4>Terrain Types</h4>
+                <div id="terrain-legend"></div>
             </div>
-            <div class="legend-content">
-                <div class="legend-section">
-                    <h4>Terrain Types</h4>
-                    <div id="terrain-legend">
-                        </div>
+            <div class="legend-section">
+                <h4>Resource Types</h4>
+                <div id="resource-legend">
+                    <div class="legend-item"><div class="legend-color resource-luxury"></div><span>Luxury</span></div>
+                    <div class="legend-item"><div class="legend-color resource-strategic"></div><span>Strategic</span></div>
+                    <div class="legend-item"><div class="legend-color resource-bonus"></div><span>Bonus</span></div>
                 </div>
-                <div class="legend-section">
-                    <h4>Resource Types</h4>
-                    <div id="resource-legend">
-                        <div class="legend-item">
-                            <div class="legend-color resource-luxury"></div><span>Luxury</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color resource-strategic"></div><span>Strategic</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color resource-bonus"></div><span>Bonus</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="legend-section">
-                    <h4>Tile Score Tiers</h4>
-                    <div id="tier-legend">
-                        </div>
-                </div>
-                 <div class="legend-section" id="heatmap-legend-section" style="display: none;">
-                     <h4>Score Heatmap</h4>
-                    <div class="heatmap-gradient"></div>
-                    <div class="heatmap-labels">
-                        <span id="heatmap-min-label">Min</span>
-                        <span id="heatmap-max-label">Max</span>
-                    </div>
+            </div>
+            <div class="legend-section">
+                <h4>Tile Score Tiers</h4>
+                <div id="tier-legend"></div>
+            </div>
+             <div class="legend-section" id="heatmap-legend-section" style="display: none;">
+                 <h4>Score Heatmap</h4>
+                <div class="heatmap-gradient"></div>
+                <div class="heatmap-labels">
+                    <span id="heatmap-min-label">Min</span>
+                    <span id="heatmap-max-label">Max</span>
                 </div>
             </div>
         </div>
+    </div>
+    <button id="show-legend-button" class="control-button">Show Legend</button>
 
-        <button id="show-legend-button" class="control-button">
-            Show Legend
-        </button>
-        <div id="debug-info" style="display: none;">
-            <h3>Debug Info</h3>
-            <div id="debug-content"></div>
-        </div>
+    <div id="debug-info" style="display: none;">
+        <h3>Debug Info</h3>
+        <div id="debug-content"></div>
+    </div>
 
-    </div> <script type="importmap">
+    <script type="importmap">
       {
         "imports": {
           "three": "https://cdn.jsdelivr.net/npm/three@0.146.0/build/three.module.js",
@@ -234,12 +261,73 @@
     <script type="module" src="./modules/main.js"></script>
 
     <script>
-        // Simple diagnostic
+        document.addEventListener('DOMContentLoaded', () => {
+            // Sidebar Section Collapse/Expand Logic
+            const sectionHeaders = document.querySelectorAll('.sidebar-section .section-header');
+            sectionHeaders.forEach(header => {
+                header.addEventListener('click', () => {
+                    const contentId = header.getAttribute('data-section-id');
+                    const contentElement = document.getElementById(contentId);
+                    if (contentElement) {
+                        header.classList.toggle('collapsed');
+                        contentElement.classList.toggle('hidden');
+                    }
+                });
+                // Optional: Set initial collapsed state for some sections
+                // Example: Collapse filters and scoring weights by default
+                if (header.parentElement.id === 'section-filters' || header.parentElement.id === 'section-scoring-weights') {
+                   if (!header.classList.contains('collapsed')) { // Check if not already set by a previous interaction
+                       header.classList.add('collapsed');
+                       document.getElementById(header.getAttribute('data-section-id')).classList.add('hidden');
+                   }
+                }
+            });
+
+            // Sidebar Toggle Logic
+            const sidebar = document.getElementById('control-sidebar');
+            const toggleSidebarButton = document.getElementById('toggle-sidebar-button');
+            const mapContainerWrapper = document.getElementById('map-container-wrapper');
+            const topBar = document.querySelector('.top-bar'); // Get the top bar
+
+            if (sidebar && toggleSidebarButton && mapContainerWrapper && topBar) {
+                const toggleAction = () => {
+                    const isOpen = sidebar.classList.toggle('open');
+                    mapContainerWrapper.classList.toggle('sidebar-open', isOpen);
+                    topBar.classList.toggle('sidebar-open', isOpen); // Also adjust topBar if needed
+                    toggleSidebarButton.textContent = isOpen ? '✕' : '☰'; // Change icon/text
+                    // Dispatch a resize event for Three.js or other canvas libraries if necessary
+                    window.dispatchEvent(new Event('resize'));
+                };
+
+                toggleSidebarButton.addEventListener('click', toggleAction);
+
+                // Set initial state (e.g., sidebar open by default)
+                // sidebar.classList.add('open');
+                // mapContainerWrapper.classList.add('sidebar-open');
+                // topBar.classList.add('sidebar-open');
+                // toggleSidebarButton.textContent = '✕';
+
+                // Set initial state (e.g., sidebar closed by default)
+                 sidebar.classList.remove('open');
+                 mapContainerWrapper.classList.remove('sidebar-open');
+                 topBar.classList.remove('sidebar-open');
+                 toggleSidebarButton.textContent = '☰';
+
+            } else {
+                console.error("Sidebar toggle elements not found. UI interactivity may be limited.");
+            }
+        });
+    </script>
+
+    <script>
         setTimeout(() => {
             const canvas = document.querySelector('#map-container canvas');
-            if (!canvas) console.warn("Diagnostic: Canvas element not found in map container after delay.");
+            if (!canvas) console.warn("Diagnostic: Canvas element not found in map container after 3s delay.");
             fetch('civ_map_data.json')
-                .then(response => console.log(`Diagnostic: civ_map_data.json fetch status: ${response.status}`))
+                .then(response => {
+                    if(!response.ok) console.warn(`Diagnostic: civ_map_data.json fetch status: ${response.status}`);
+                    else console.log(`Diagnostic: civ_map_data.json fetch status: ${response.status}`);
+                })
                 .catch(error => console.warn(`Diagnostic: Error fetching civ_map_data.json: ${error.message}`));
         }, 3000);
     </script>

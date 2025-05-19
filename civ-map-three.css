@@ -1,456 +1,406 @@
 /* civ-map-three.css */
 
-/* Basic Reset & Body */
+/* === Core Page Setup === */
 body {
-    font-family: Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #f0f0f0; /* Light grey background */
+    background-color: #f4f7f9; /* A light, neutral background */
     color: #333;
-    overflow: hidden; /* Prevent scrollbars caused by absolute positioning */
-    display: flex; /* Use flexbox for layout */
-    flex-direction: column; /* Stack header and map vertically */
+    overflow: hidden; /* Prevent body scrollbars */
+    display: flex;
+    flex-direction: column;
     height: 100vh; /* Full viewport height */
 }
 
-/* Main container for vis + UI elements */
-.visualization-container {
-    position: relative; /* Context for absolute positioning of legend/tooltip */
-    width: 100%;
-    flex-grow: 1; /* Allow map container to fill remaining space */
-    display: flex; /* Use flex for the main area */
-    flex-direction: column; /* Stack header above map */
-}
-
-
-/* Header Area */
-.header {
-    background-color: #ffffff;
-    padding: 8px 15px; /* Reduced padding */
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    z-index: 10; /* Keep header above map */
-    flex-shrink: 0; /* Prevent header from shrinking */
-}
-
-.header h1 {
-    margin: 0 0 8px 0; /* Add some space below title */
-    font-size: 20px; /* Slightly smaller title */
-    text-align: center;
-    color: #444;
-}
-
-/* Controls Area */
-.controls {
-    display: flex;
-    flex-wrap: wrap; /* Allow controls to wrap on smaller screens */
-    justify-content: center; /* Center control groups */
-    gap: 10px 20px; /* Row and column gap */
-    align-items: center;
-}
-
-.control-group {
+/* === Top Bar === */
+.top-bar {
+    background-color: #343a40; /* Darker, more standard header color */
+    color: #f8f9fa; /* Light text for contrast */
+    padding: 0 15px;
     display: flex;
     align-items: center;
-    flex-wrap: wrap; /* Allow items within group to wrap */
-    gap: 10px; /* Gap between items in a group */
-    padding: 5px;
-    background-color: #f8f8f8; /* Slight background for groups */
-    border-radius: 5px;
+    height: 50px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    z-index: 1100; /* High z-index to stay on top */
+    flex-shrink: 0; /* Prevent shrinking */
+    transition: margin-left 0.3s ease-in-out; /* For sidebar push effect */
+    margin-left: 0; /* Default when sidebar is closed */
+}
+.top-bar.sidebar-open {
+    /* margin-left: 320px; /* Adjust to match sidebar width */
+    /* Commented out: Sidebar will be fixed and map wrapper will shift, top-bar can stay full width */
 }
 
-/* Buttons */
-button, .control-button {
-    padding: 6px 12px; /* Smaller buttons */
-    background-color: #5a9a5a; /* Softer green */
+#toggle-sidebar-button {
+    background: none;
+    border: none;
+    color: #f8f9fa;
+    font-size: 22px; /* Slightly adjusted size */
+    cursor: pointer;
+    padding: 0 12px 0 0; /* Adjusted padding */
+    margin-right: 12px;
+    line-height: 50px; /* Vertically center icon */
+    transition: color 0.2s ease;
+}
+#toggle-sidebar-button:hover {
+    color: #adb5bd; /* Softer hover color */
+}
+
+.top-bar h1 {
+    margin: 0;
+    font-size: 18px; /* Slightly reduced for a cleaner look */
+    font-weight: 500; /* Medium weight */
+    white-space: nowrap;
+}
+
+/* === Control Sidebar === */
+#control-sidebar {
+    width: 320px; /* Slightly wider for more content space */
+    background-color: #ffffff; /* White sidebar */
+    border-right: 1px solid #dee2e6; /* Standard border color */
+    box-shadow: 3px 0 8px rgba(0,0,0,0.07); /* Softer shadow */
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease-in-out;
+    transform: translateX(-100%); /* Start hidden off-screen to the left */
+    z-index: 1000; /* Below top-bar, above map overlays if needed */
+    height: calc(100vh - 50px); /* Full available height below top bar */
+    position: fixed; /* Fixed position for slide-in effect */
+    left: 0;
+    top: 50px; /* Positioned below the top bar */
+}
+#control-sidebar.open {
+    transform: translateX(0); /* Slide in */
+}
+.sidebar-content-wrapper {
+    overflow-y: auto; /* Enable vertical scrolling for sidebar content */
+    flex-grow: 1;
+    padding-bottom: 20px; /* Space at the bottom of scrollable area */
+}
+
+/* Sidebar section styles are in the HTML's <style> block for this example,
+   but should ideally be moved here. */
+
+/* === Control Item Styling (Checkboxes, Labels within Sidebar) === */
+.control-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 0; /* Consistent padding for items */
+    gap: 10px; /* Space between checkbox and label */
+}
+.control-item input[type="checkbox"] {
+    margin: 0; /* Remove default margin */
+    cursor: pointer;
+    accent-color: #007bff; /* Standard primary blue */
+    width: 16px; /* Custom size */
+    height: 16px;
+}
+.control-item label {
+    font-size: 14px;
+    color: #495057; /* Slightly muted text color */
+    cursor: pointer;
+    flex-grow: 1; /* Allow label to take available space */
+    line-height: 1.4;
+}
+
+/* === General Button Styling === */
+button.control-button, .preset-button {
+    padding: 8px 14px; /* Adjusted padding */
+    background-color: #007bff; /* Primary blue */
     color: white;
     border: none;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 13px; /* Smaller font */
-    transition: background-color 0.2s ease, transform 0.1s ease;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+button.control-button:hover, .preset-button:hover {
+    background-color: #0056b3; /* Darker blue on hover */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
+button.control-button:active, .preset-button:active {
+    transform: translateY(1px);
     box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
-
-button:hover, .control-button:hover {
-    background-color: #4d884d;
+#reset-weights {
+    background-color: #6c757d; /* Secondary grey for reset */
 }
-button:active, .control-button:active {
-    transform: translateY(1px);
-    box-shadow: none;
+#reset-weights:hover {
+    background-color: #5a6268;
 }
 
-
-button.inactive, .control-button.inactive {
-    background-color: #d17070; /* Softer red */
-}
-
-button.inactive:hover, .control-button.inactive:hover {
-    background-color: #c06060;
-}
-
-/* Checkboxes and Labels */
-.checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    cursor: pointer;
-    font-size: 13px;
-}
-input[type="checkbox"] {
-    margin-right: 3px;
-    cursor: pointer;
-    accent-color: #5a9a5a; /* Match button color */
-}
-
-/* Sliders */
-.slider-control {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 13px;
-}
-input[type="range"] {
-    cursor: pointer;
-    height: 16px; /* Easier to grab */
-    accent-color: #5a9a5a;
-}
-
-/* Tier Filters Specific Styling */
+/* === Tier Filter Styling === */
 .tier-filters {
-    font-size: 13px;
-}
-.tier-filters span {
-    margin-right: 5px;
-    font-weight: bold;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
 }
 .tier-filters label {
-    padding: 2px 5px;
-    border-radius: 3px;
-    background-color: #eee;
+    padding: 6px 10px; /* Adjusted padding */
+    border-radius: 4px;
+    background-color: #e9ecef;
+    border: 1px solid #ced4da;
+    cursor: pointer;
+    font-size: 13px;
+    color: #495057;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    display: inline-flex; /* Align items well if using icons later */
+    align-items: center;
+    justify-content: center;
 }
 .tier-filters input[type="checkbox"] {
-    vertical-align: middle;
+    display: none; /* Hide the actual checkbox */
+}
+/* Style the label when its checkbox is checked */
+.tier-filters input[type="checkbox"]:checked + span { /* If structure is <label><input><span>S</span></label> */
+    /* This is an example, current HTML is <label><input>S</label> */
+}
+.tier-filters label:has(input[type="checkbox"]:checked) { /* Modern browser support */
+    background-color: #007bff;
+    color: white;
+    border-color: #0056b3;
+}
+.tier-filters label:hover:not(:has(input[type="checkbox"]:checked)) {
+    background-color: #dde2e6; /* Hover for unchecked items */
+    border-color: #adb5bd;
 }
 
 
-/* Map Container */
+/* === Map Container and Wrapper === */
+#map-container-wrapper {
+    flex-grow: 1; /* Occupy remaining vertical space */
+    position: relative; /* Context for absolutely positioned children like map-container */
+    background-color: #181a1b; /* Dark background for the map area */
+    transition: margin-left 0.3s ease-in-out;
+    margin-left: 0; /* Default: no margin when sidebar is closed */
+    height: calc(100vh - 50px); /* Full available height below top bar */
+    overflow: hidden; /* Prevent map from causing body scroll */
+}
+#map-container-wrapper.sidebar-open {
+    margin-left: 320px; /* Push map wrapper to the right when sidebar is open */
+}
+
 #map-container {
-    flex-grow: 1; /* Take remaining vertical space */
-    position: relative; /* Needed for tooltip and loading overlay positioning */
-    background-color: #1a1a1a; /* Dark background for contrast */
-    overflow: hidden; /* Ensure nothing spills out */
-    min-height: 300px; /* Minimum height */
+    width: 100%;
+    height: 100%;
+    position: relative; /* For tooltip, loading overlay */
+    overflow: hidden; /* Clip canvas if it exceeds bounds */
 }
-
-/* Canvas Styling (target canvas added by Three.js) */
 #map-container canvas {
     display: block; /* Remove extra space below canvas */
     width: 100%;
     height: 100%;
 }
 
-/* --- START: Loading Overlay Styles --- */
+/* === Loading Overlay === */
 #loading-overlay {
-    position: absolute; /* Position over the map-container */
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.75); /* Slightly darker semi-transparent black */
-    display: flex; /* Use flexbox to center content */
-    justify-content: center;
-    align-items: center;
-    z-index: 100; /* Ensure it's on top of map canvas, below header/legend if needed */
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.85); /* Darker overlay */
+    display: flex;
+    justify-content: center; align-items: center;
+    z-index: 1500; /* High z-index */
     color: white;
     text-align: center;
-    transition: opacity 0.5s ease-out; /* Smooth fade-out transition */
-    opacity: 1; /* Start visible */
+    opacity: 1;
+    transition: opacity 0.5s ease-out;
 }
-
-/* Style for when loading is complete and overlay should hide */
 #loading-overlay.hidden {
     opacity: 0;
-    pointer-events: none; /* Allow clicks to pass through when hidden */
+    pointer-events: none; /* Allow clicks through when hidden */
 }
+/* Progress bar styles from original HTML are generally fine */
+#progress-bar-container { background-color: #343a40; }
+#progress-bar { background-color: #28a745; } /* Green for progress */
+#loading-error { color: #dc3545; } /* Red for errors */
 
 
-#loading-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-#loading-text {
-    margin-bottom: 15px;
-    font-size: 1.2em;
-    font-weight: bold;
-}
-
-#progress-bar-container {
-    width: 80%; /* Width of the progress bar container relative to loading-content */
-    max-width: 400px; /* Max width */
-    height: 20px;
-    background-color: #555; /* Dark grey background for the bar container */
-    border-radius: 10px; /* Rounded corners */
-    overflow: hidden; /* Keep the inner bar contained */
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); /* Inner shadow for depth */
-}
-
-#progress-bar {
-    width: 0%; /* Initial width is 0 */
-    height: 100%;
-    background-color: #4caf50; /* Green progress color */
-    border-radius: 10px; /* Match container rounding */
-    transition: width 0.4s ease-out; /* Smooth transition for width changes */
-    /* Optional: Add a subtle gradient */
-    background-image: linear-gradient(to bottom, #66bb6a, #43a047);
-}
-
-#loading-error {
-    display: none; /* Hidden by default */
-    color: #ff8a80; /* Lighter red color for errors on dark background */
-    margin-top: 15px;
-    font-weight: bold;
-    max-width: 90%; /* Prevent error text from being too wide */
-}
-/* --- END: Loading Overlay Styles --- */
-
-
-/* Tooltip */
+/* === Tooltip === */
 .tooltip {
     position: absolute;
-    visibility: hidden; /* Start hidden */
-    background-color: rgba(40, 40, 40, 0.9); /* Darker tooltip */
+    visibility: hidden;
+    background-color: rgba(20, 20, 20, 0.95); /* Very dark, almost opaque */
     color: #e0e0e0;
-    padding: 8px 12px;
-    border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    pointer-events: none; /* Don't interfere with mouse events */
-    max-width: 220px;
-    z-index: 110; /* Above loading overlay if it lingers */
-    font-size: 12px; /* Smaller tooltip text */
-    line-height: 1.4;
-    border: 1px solid #555;
+    padding: 10px 14px;
+    border-radius: 5px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+    pointer-events: none;
+    max-width: 260px;
+    z-index: 1600; /* Above map, potentially above some UI elements if map is full screen */
+    font-size: 12.5px; /* Slightly larger for readability */
+    line-height: 1.5;
+    border: 1px solid #333;
 }
-
 .tooltip h4 {
-    margin: 0 0 5px 0;
-    border-bottom: 1px solid #555;
-    padding-bottom: 4px;
-    font-size: 13px;
-    color: #fff;
+    margin: 0 0 7px 0;
+    border-bottom: 1px solid #444;
+    padding-bottom: 5px;
+    font-size: 13.5px;
+    color: #ffffff;
+    font-weight: 600;
 }
-
-.tooltip p {
-    margin: 4px 0;
-}
-.tooltip strong {
-    color: #aaa;
-}
+.tooltip p { margin: 4px 0; }
+.tooltip strong { color: #adb5bd; }
 
 
-/* Legend */
+/* === Legend === */
 .legend {
-    position: absolute;
-    bottom: 15px; /* Position from bottom */
-    right: 15px;  /* Position from right */
-    background-color: rgba(255, 255, 255, 0.85); /* Semi-transparent white */
-    backdrop-filter: blur(4px); /* Frosted glass effect */
-    padding: 12px;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    max-width: 220px; /* Allow slightly wider content */
-    max-height: 75vh; /* Limit height to 75% of viewport height */
-    overflow-y: auto; /* Add scrollbar ONLY if content exceeds max-height */
-    z-index: 50; /* Above map, below header */
+    position: fixed; /* Fixed position relative to viewport */
+    bottom: 15px;
+    right: 15px;
+    background-color: rgba(255, 255, 255, 0.92); /* Slightly more opaque */
+    backdrop-filter: blur(6px); /* Stronger blur */
+    padding: 14px;
+    border-radius: 6px; /* Slightly smaller radius */
+    box-shadow: 0 3px 12px rgba(0,0,0,0.12);
+    max-width: 230px;
+    max-height: calc(100vh - 100px); /* Limit height */
+    overflow-y: auto; /* Scroll if content exceeds max-height */
+    z-index: 900; /* Below sidebar, above map elements */
     font-size: 12px;
-    border: 1px solid rgba(0,0,0,0.1);
-    transition: opacity 0.3s ease, visibility 0.3s ease; /* Smooth hide/show */
+    border: 1px solid #dee2e6;
+    transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+    transform: translateY(0);
 }
-
-/* Style for when the legend is hidden */
 .legend.hidden {
     opacity: 0;
     visibility: hidden;
-    pointer-events: none; /* Prevent interaction when hidden */
+    transform: translateY(15px); /* Animate slightly on hide */
+    pointer-events: none;
 }
-
 
 .legend-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
-    padding-bottom: 5px;
-    border-bottom: 1px solid #ddd;
+    margin-bottom: 10px;
+    padding-bottom: 7px;
+    border-bottom: 1px solid #e0e0e0;
 }
-
-.legend h3 {
-    margin: 0;
-    font-size: 14px;
-    color: #333;
-}
-
+.legend h3 { margin: 0; font-size: 15px; color: #343a40; }
 .legend-toggle {
     cursor: pointer;
-    color: #4CAF50;
-    font-size: 11px;
+    color: #007bff;
+    font-size: 11.5px;
     font-weight: bold;
-    padding: 2px 4px;
+    padding: 3px 7px;
     border-radius: 3px;
-    background-color: #eee;
+    background-color: #e7f3ff; /* Light blue background */
 }
-.legend-toggle:hover {
-    background-color: #ddd;
-}
+.legend-toggle:hover { background-color: #cfe7ff; }
 
-
-.legend-section {
-    margin-bottom: 10px;
-}
-.legend-section:last-child {
-    margin-bottom: 0;
-}
-
-
+.legend-section { margin-bottom: 10px; }
+.legend-section:last-child { margin-bottom: 0; }
 .legend-section h4 {
-    margin: 0 0 8px 0;
-    font-size: 13px;
-    color: #555;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 4px;
+    margin: 0 0 7px 0; font-size: 13px; color: #495057;
+    border-bottom: 1px solid #f1f1f1; padding-bottom: 4px; font-weight: 600;
 }
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 4px;
-    line-height: 1.3;
-}
-
+.legend-item { display: flex; align-items: center; margin-bottom: 4px; line-height: 1.3; }
 .legend-color {
-    width: 14px;
-    height: 14px;
-    margin-right: 8px;
-    border: 1px solid #bbb;
-    flex-shrink: 0; /* Prevent shrinking */
+    width: 15px; height: 15px; margin-right: 9px;
+    border: 1px solid #ccc; flex-shrink: 0;
 }
-/* Specific resource colors */
-.resource-luxury { background-color: #9c27b0; border-radius: 50%; }
-.resource-strategic { background-color: #f44336; border-radius: 50%; }
-.resource-bonus { background-color: #4caf50; border-radius: 50%; }
-
+/* Resource colors (ensure these match JS config if dynamically generated) */
+.resource-luxury { background-color: #8e44ad; border-radius: 50%; } /* Purple */
+.resource-strategic { background-color: #c0392b; border-radius: 50%; } /* Darker Red */
+.resource-bonus { background-color: #27ae60; border-radius: 50%; } /* Darker Green */
 
 .tier-symbol {
-    width: 18px;
-    height: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 8px;
-    font-weight: bold;
-    border-radius: 50%;
-    font-size: 10px;
-    flex-shrink: 0;
-    border: 1px solid rgba(0,0,0,0.2);
+    width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;
+    margin-right: 7px; font-weight: bold; border-radius: 50%; font-size: 10.5px;
+    flex-shrink: 0; border: 1px solid rgba(0,0,0,0.15);
+    color: white; /* Default text color, override per tier if needed */
 }
+/* Tier colors (ensure consistency with JS config) */
+.tier-S { background-color: #f1c40f; color: #333; } /* Gold, dark text */
+.tier-A { background-color: #e67e22; } /* Orange */
+.tier-B { background-color: #2ecc71; } /* Green */
+.tier-C { background-color: #3498db; } /* Blue */
+.tier-D { background-color: #95a5a6; } /* Grey */
+.tier-E { background-color: #7f8c8d; } /* Darker Grey */
+.tier-F { background-color: #34495e; } /* Dark Blue/Grey */
 
-/* Tier-specific colors (match JS config) */
-.tier-S { background-color: #ffcc00; color: black; }
-.tier-A { background-color: #ff8800; color: black; }
-.tier-B { background-color: #66cc66; color: black; }
-.tier-C { background-color: #6699cc; color: black; }
-.tier-D { background-color: #cccccc; color: black; }
-.tier-E { background-color: #999999; color: black; }
-.tier-F { background-color: #666666; color: white; }
-
-/* *** Heatmap Legend Styles *** */
-#heatmap-legend-section {
-    /* Styles applied when shown by JS */
-}
+/* Heatmap Legend */
+#heatmap-legend-section { /* Styles applied when shown by JS */ }
 .heatmap-gradient {
-    height: 15px; /* Height of the gradient bar */
-    width: 100%;
-    border: 1px solid #ccc;
-    border-radius: 3px;
-    margin-bottom: 4px;
-    /* *** Updated gradient to match JS stops *** */
-    background: linear-gradient(to right, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000);
+    height: 16px; width: 100%; border: 1px solid #ccc; border-radius: 3px; margin-bottom: 4px;
+    background: linear-gradient(to right, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000); /* Standard heatmap gradient */
 }
-.heatmap-labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 10px;
-    color: #666;
-}
+.heatmap-labels { display: flex; justify-content: space-between; font-size: 10.5px; color: #555; }
 
-/* --- Styles for the Show Legend Button --- */
+/* === Show Legend Button === */
 #show-legend-button {
-    position: absolute;
+    position: fixed;
     bottom: 15px;
     right: 15px;
-    z-index: 51; /* Ensure it's above other elements when visible */
-    display: none; /* Hidden by default */
+    z-index: 901; /* Above legend when it's hidden */
+    display: none; /* Hidden by default, JS makes it visible */
     /* Inherits .control-button styles */
 }
-
-/* *** ADDED: Class to make the button visible *** */
-#show-legend-button.visible {
-    display: block; /* Or 'inline-block' if needed */
-}
-/* ---------------------------------------------- */
+#show-legend-button.visible { display: block; }
 
 
-/* Debug Info Overlay */
+/* === Debug Info Overlay === */
 #debug-info {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    background: rgba(0,0,0,0.75);
-    color: #0f0; /* Green text */
-    padding: 10px;
-    border-radius: 5px;
-    font-family: monospace;
-    font-size: 11px;
-    max-width: 350px;
-    max-height: 50vh;
-    overflow-y: auto;
-    z-index: 1000; /* Highest */
+    position: fixed; top: 60px; right: 10px; background: rgba(25,25,25,0.88);
+    color: #2ecc71; /* Green text for debug */
+    padding: 12px; border-radius: 5px; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 11px; max-width: 360px; max-height: 45vh; overflow-y: auto;
+    z-index: 2000; /* Very high z-index */
     border: 1px solid #444;
 }
-#debug-info h3 {
-    margin: 0 0 5px 0;
-    font-size: 12px;
-    border-bottom: 1px solid #444;
-    padding-bottom: 3px;
-}
-#debug-content div {
-    margin-bottom: 2px;
-    word-break: break-all;
-}
+#debug-info h3 { margin: 0 0 6px 0; font-size: 12.5px; border-bottom: 1px solid #444; padding-bottom: 4px; }
+#debug-content div { margin-bottom: 3px; word-break: break-all; }
 
 
-/* Error Message Styling */
+/* === Error Message Styling === */
 .error-message {
-    position: absolute;
-    top: 40%; /* Adjust vertical position */
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: white;
-    padding: 20px 30px;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    text-align: center;
-    border: 1px solid #ddd;
-    max-width: 80%;
-    z-index: 120; /* Ensure error messages are visible */
+    position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
+    background-color: white; padding: 25px 35px; border-radius: 6px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.2); text-align: center;
+    border: 1px solid #e0e0e0; max-width: 85%; z-index: 2500;
 }
-.error-message h3 {
-    color: #d9534f; /* Reddish color */
-    margin: 0 0 10px 0;
+.error-message h3 { color: #d9534f; margin: 0 0 12px 0; }
+.error-message p { margin: 6px 0; font-size: 14.5px; color: #555; }
+
+/* === Slider Customization (Track and Thumb) === */
+/* Styles for weight-slider-group are in HTML's <style> or can be moved here */
+input[type="range"].weight-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    background: #dee2e6; /* Track color */
+    outline: none;
+    border-radius: 4px;
+    cursor: pointer;
 }
-.error-message p {
-    margin: 5px 0;
-    font-size: 14px;
-    color: #555;
+input[type="range"].weight-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #007bff; /* Thumb color */
+    border-radius: 50%;
+    border: 2px solid white; /* White border around thumb */
+    box-shadow: 0 0 4px rgba(0,0,0,0.2); /* Subtle shadow for thumb */
+    cursor: pointer;
+}
+input[type="range"].weight-slider::-moz-range-thumb {
+    width: 16px; /* Firefox thumb size (border adds to total size) */
+    height: 16px;
+    background: #007bff;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 0 4px rgba(0,0,0,0.2);
+    cursor: pointer;
+}
+input[type="range"].weight-slider::-moz-range-track {
+    background: #dee2e6;
+    height: 8px;
+    border-radius: 4px;
 }
