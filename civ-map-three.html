@@ -30,7 +30,7 @@
         }
 
         .sidebar-section .section-header::after {
-            content: '\\25B2'; /* Up arrow (▲) */
+            content: '\25B2'; /* Up arrow (▲) */
             font-size: 0.9em;
             transition: transform 0.25s ease-in-out;
         }
@@ -273,10 +273,8 @@
                         contentElement.classList.toggle('hidden');
                     }
                 });
-                // Optional: Set initial collapsed state for some sections
-                // Example: Collapse filters and scoring weights by default
                 if (header.parentElement.id === 'section-filters' || header.parentElement.id === 'section-scoring-weights') {
-                   if (!header.classList.contains('collapsed')) { // Check if not already set by a previous interaction
+                   if (!header.classList.contains('collapsed')) {
                        header.classList.add('collapsed');
                        document.getElementById(header.getAttribute('data-section-id')).classList.add('hidden');
                    }
@@ -287,31 +285,56 @@
             const sidebar = document.getElementById('control-sidebar');
             const toggleSidebarButton = document.getElementById('toggle-sidebar-button');
             const mapContainerWrapper = document.getElementById('map-container-wrapper');
-            const topBar = document.querySelector('.top-bar'); // Get the top bar
+            const topBar = document.querySelector('.top-bar');
+
+            let originalWrapperBg = ''; 
+            const sceneBgColor = '#d0e6f9'; 
 
             if (sidebar && toggleSidebarButton && mapContainerWrapper && topBar) {
+                originalWrapperBg = window.getComputedStyle(mapContainerWrapper).backgroundColor;
+
+                const handleResizeOnTransitionEnd = (event) => {
+                    // Ensure we're reacting to the transition on the correct property and element
+                    if (event.propertyName === 'margin-left' && event.target === mapContainerWrapper) {
+                        requestAnimationFrame(() => {
+                            window.dispatchEvent(new Event('resize'));
+                            console.log('Resize event dispatched after sidebar transition.');
+                            // Revert background color AFTER resize and another rAF to allow redraw
+                            requestAnimationFrame(() => {
+                                mapContainerWrapper.style.backgroundColor = originalWrapperBg;
+                                console.log('Wrapper background reverted after redraw.');
+                            });
+                        });
+                    }
+                };
+
+                mapContainerWrapper.addEventListener('transitionend', handleResizeOnTransitionEnd);
+
                 const toggleAction = () => {
+                    // Set wrapper background to scene background BEFORE animation starts
+                    mapContainerWrapper.style.backgroundColor = sceneBgColor;
+                    console.log('Wrapper background set to scene color.');
+
                     const isOpen = sidebar.classList.toggle('open');
                     mapContainerWrapper.classList.toggle('sidebar-open', isOpen);
-                    topBar.classList.toggle('sidebar-open', isOpen); // Also adjust topBar if needed
-                    toggleSidebarButton.textContent = isOpen ? '✕' : '☰'; // Change icon/text
-                    // Dispatch a resize event for Three.js or other canvas libraries if necessary
-                    window.dispatchEvent(new Event('resize'));
+                    topBar.classList.toggle('sidebar-open', isOpen);
+                    toggleSidebarButton.textContent = isOpen ? '✕' : '☰';
+                    
+                    // The background reversion is now solely handled by the 'transitionend' listener.
+                    // The previous setTimeout for !isOpen is removed.
                 };
 
                 toggleSidebarButton.addEventListener('click', toggleAction);
 
-                // Set initial state (e.g., sidebar open by default)
-                // sidebar.classList.add('open');
-                // mapContainerWrapper.classList.add('sidebar-open');
-                // topBar.classList.add('sidebar-open');
-                // toggleSidebarButton.textContent = '✕';
+                sidebar.classList.remove('open');
+                mapContainerWrapper.classList.remove('sidebar-open');
+                topBar.classList.remove('sidebar-open');
+                toggleSidebarButton.textContent = '☰';
 
-                // Set initial state (e.g., sidebar closed by default)
-                 sidebar.classList.remove('open');
-                 mapContainerWrapper.classList.remove('sidebar-open');
-                 topBar.classList.remove('sidebar-open');
-                 toggleSidebarButton.textContent = '☰';
+                setTimeout(() => {
+                    console.log('Initial resize dispatch on load.');
+                    window.dispatchEvent(new Event('resize'));
+                }, 150);
 
             } else {
                 console.error("Sidebar toggle elements not found. UI interactivity may be limited.");
@@ -320,13 +343,16 @@
     </script>
 
     <script>
+        // Diagnostic script
         setTimeout(() => {
             const canvas = document.querySelector('#map-container canvas');
             if (!canvas) console.warn("Diagnostic: Canvas element not found in map container after 3s delay.");
+            else console.log("Diagnostic: Canvas element found in map container after 3s delay.");
+
             fetch('civ_map_data.json')
                 .then(response => {
-                    if(!response.ok) console.warn(`Diagnostic: civ_map_data.json fetch status: ${response.status}`);
-                    else console.log(`Diagnostic: civ_map_data.json fetch status: ${response.status}`);
+                    console.log(`Diagnostic: civ_map_data.json fetch status: ${response.status}`);
+                    if(!response.ok) console.warn(`Diagnostic: civ_map_data.json not fetched successfully.`);
                 })
                 .catch(error => console.warn(`Diagnostic: Error fetching civ_map_data.json: ${error.message}`));
         }, 3000);

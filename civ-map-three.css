@@ -258,8 +258,8 @@ button.control-button:active, .preset-button:active {
     border-radius: 6px; /* Slightly smaller radius */
     box-shadow: 0 3px 12px rgba(0,0,0,0.12);
     max-width: 230px;
-    max-height: calc(100vh - 100px); /* Limit height */
-    overflow-y: auto; /* Scroll if content exceeds max-height */
+    /* max-height: calc(100vh - 100px); /* Removed: Overall legend height is controlled by its content */
+    /* overflow-y: auto; /* Removed: Overall legend scroll is controlled by .legend-content */
     z-index: 900; /* Below sidebar, above map elements */
     font-size: 12px;
     border: 1px solid #dee2e6;
@@ -292,6 +292,14 @@ button.control-button:active, .preset-button:active {
     background-color: #e7f3ff; /* Light blue background */
 }
 .legend-toggle:hover { background-color: #cfe7ff; }
+
+/* Styles for the content area within the legend */
+.legend .legend-content {
+    max-height: 0; /* Start collapsed */
+    overflow: hidden; /* Clip content during collapse/expand */
+    transition: max-height 0.3s ease-in-out; /* Animate max-height */
+    /* Ensure there's some padding if not inherited, e.g., padding: 10px 0 0 0; if header has bottom padding */
+}
 
 .legend-section { margin-bottom: 10px; }
 .legend-section:last-child { margin-bottom: 0; }
