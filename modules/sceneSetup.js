@@ -95,3 +95,27 @@ function onWindowResize() {
         }
     }
 }
+
+/**
+ * Returns the current scene from state.
+ * @returns {THREE.Scene|null} The scene or null if not initialized.
+ */
+export function getScene() {
+    return state.scene;
+}
+
+/**
+ * Returns the current renderer from state.
+ * @returns {THREE.WebGLRenderer|null} The renderer or null if not initialized.
+ */
+export function getRenderer() {
+    return state.renderer;
+}
+
+/**
+ * Returns the current camera from state.
+ * @returns {THREE.PerspectiveCamera|null} The camera or null if not initialized.
+ */
+export function getCamera() {
+    return state.camera;
+}

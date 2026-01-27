@@ -503,3 +503,9 @@ export function updateMapDisplay() {
          }
     });
 }
+
+/**
+ * Alias for clearMapElements for external use.
+ * Clears all map visualization elements from the scene.
+ */
+export const clearMapVisualization = clearMapElements;

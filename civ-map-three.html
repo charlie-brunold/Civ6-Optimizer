@@ -85,7 +85,37 @@
     </div>
 
     <div id="control-sidebar" class="sidebar">
-        <div class="sidebar-content-wrapper"> <div class="sidebar-section" id="section-display-options">
+        <div class="sidebar-content-wrapper">
+            <!-- Data Management Section -->
+            <div class="sidebar-section" id="section-data-management">
+                <div class="section-header" data-section-id="data-management-content">
+                    <span>Data Management</span>
+                </div>
+                <div class="section-content" id="data-management-content">
+                    <div class="control-item" style="margin-bottom: 12px;">
+                        <label for="demo-maps" style="display: block; margin-bottom: 6px; font-weight: 500;">Load Demo Map:</label>
+                        <select id="demo-maps" class="control-select" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 0.9em;">
+                            <option value="">-- Select a Demo Map --</option>
+                            <option value="map_tiny_1.csv">Tiny Map 1</option>
+                            <option value="map_tiny_2_copy.csv">Tiny Map 2</option>
+                            <option value="cleaned_map_data.csv">Cleaned Map Data</option>
+                        </select>
+                    </div>
+                    <div class="control-item" style="margin-bottom: 12px;">
+                        <label for="map-upload" style="display: block; margin-bottom: 6px; font-weight: 500;">Upload CSV Map:</label>
+                        <input type="file" id="map-upload" accept=".csv" style="width: 100%; font-size: 0.85em;">
+                        <small style="display: block; margin-top: 4px; color: #6c757d;">Supports Civ VI map export CSVs</small>
+                    </div>
+                    <div class="control-item" style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #dee2e6;">
+                        <button id="reset-visualization" class="control-button" style="width: 100%;" title="Clear current map and reset visualization">Reset Visualization</button>
+                    </div>
+                    <div id="current-map-info" style="margin-top: 10px; font-size: 0.85em; color: #495057;">
+                        <span id="current-map-name">No map loaded</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section" id="section-display-options">
                 <div class="section-header" data-section-id="display-options-content">
                     <span>Display Options</span>
                 </div>
@@ -200,7 +230,7 @@
             <div id="debug-mode-overlay">TERRITORY VISUALIZATION MODE ACTIVE (ESC to exit)</div>
             <div id="loading-overlay">
                  <div id="loading-content" style="text-align: center;">
-                    <div id="loading-text" style="margin-bottom: 15px;">Loading Map Data... 0%</div>
+                    <div id="loading-text" style="margin-bottom: 15px;">Select or upload a map to begin</div>
                     <div id="progress-bar-container" style="width: 80%; max-width: 400px; height: 20px; background-color: #555; border-radius: 10px; overflow: hidden; margin: 0 auto;">
                         <div id="progress-bar" style="width: 0%; height: 100%; background-color: #4caf50; border-radius: 10px; transition: width 0.3s ease-out;"></div>
                     </div>
@@ -249,6 +279,9 @@
         <div id="debug-content"></div>
     </div>
 
+    <!-- PapaParse for CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
     <script type="importmap">
       {
         "imports": {
@@ -273,7 +306,10 @@
                         contentElement.classList.toggle('hidden');
                     }
                 });
-                if (header.parentElement.id === 'section-filters' || header.parentElement.id === 'section-scoring-weights') {
+                // Collapse sections except Data Management (which should be expanded by default)
+                if (header.parentElement.id === 'section-filters' ||
+                    header.parentElement.id === 'section-scoring-weights' ||
+                    header.parentElement.id === 'section-display-options') {
                    if (!header.classList.contains('collapsed')) {
                        header.classList.add('collapsed');
                        document.getElementById(header.getAttribute('data-section-id')).classList.add('hidden');
@@ -348,13 +384,6 @@
             const canvas = document.querySelector('#map-container canvas');
             if (!canvas) console.warn("Diagnostic: Canvas element not found in map container after 3s delay.");
             else console.log("Diagnostic: Canvas element found in map container after 3s delay.");
-
-            fetch('civ_map_data.json')
-                .then(response => {
-                    console.log(`Diagnostic: civ_map_data.json fetch status: ${response.status}`);
-                    if(!response.ok) console.warn(`Diagnostic: civ_map_data.json not fetched successfully.`);
-                })
-                .catch(error => console.warn(`Diagnostic: Error fetching civ_map_data.json: ${error.message}`));
         }, 3000);
     </script>
 

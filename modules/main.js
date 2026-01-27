@@ -1,189 +1,310 @@
 /**
  * main.js
  * Entry point for the Civilization Map Visualization.
- * Loads data, initializes modules, and starts the application.
+ * Initializes modules and handles dynamic map loading from uploads or demo maps.
  */
-import * as THREE from 'three'; // Import THREE itself
-// Note: OrbitControls is loaded via import map in HTML, but THREE needs direct import
+import * as THREE from 'three';
 
 // Import necessary modules
-import { config, tierConfig } from './config.js'; // tierConfig is directly used by setupLegend
-import { initScene } from './sceneSetup.js';
-import { createMapVisualization } from './mapElements.js';
+import { config, tierConfig } from './config.js';
+import { initScene, getScene, getRenderer, getCamera } from './sceneSetup.js';
+import { createMapVisualization, clearMapVisualization } from './mapElements.js';
 import { initInteraction } from './interaction.js';
 import { initUIControls } from './uiControls.js';
-import { startAnimationLoop } from './animation.js';
-import { log, formatTerrainName } from './utils.js'; // Import formatTerrainName
-import { loadMapData as fetchData } from './dataLoader.js'; // Rename imported function
+import { startAnimationLoop, stopAnimationLoop } from './animation.js';
+import { log, formatTerrainName } from './utils.js';
+import {
+    loadDemoMap,
+    loadUploadedMap,
+    loadConfig,
+    getAvailableDemoMaps
+} from './dataLoader.js';
 
-// --- Constants ---
-const MAP_DATA_URL = 'civ_map_data.json'; // Path to your generated JSON data
+// --- State ---
+let currentMapData = null;
+let isVisualizationActive = false;
 
-// --- DOM Elements (for loading bar) ---
+// --- DOM Elements ---
 let loadingOverlay, progressBar, loadingText, loadingError;
+let mapUploadInput, demoMapsSelect, resetButton, currentMapNameSpan;
 
 // --- Loading Manager ---
 const loadingManager = new THREE.LoadingManager();
 
 loadingManager.onStart = function (url, itemsLoaded, itemsTotal) {
     log('Loading started...');
-    if (loadingOverlay) loadingOverlay.classList.remove('hidden'); // Ensure visible
-    if (progressBar) progressBar.style.width = '0%';
-    if (loadingText) loadingText.textContent = 'Loading Map Data... 0%';
-    if (loadingError) loadingError.style.display = 'none';
+    showLoading('Loading map data...');
 };
 
 loadingManager.onLoad = function () {
     log('Loading complete!');
-    if (loadingOverlay) {
-        loadingOverlay.classList.add('hidden');
-    }
+    hideLoading();
 };
 
 loadingManager.onProgress = function (url, itemsLoaded, itemsTotal) {
     const progress = itemsTotal > 0 ? Math.round((itemsLoaded / itemsTotal) * 100) : 0;
     log(`Loading progress: ${progress}% (${itemsLoaded}/${itemsTotal})`);
-    if (progressBar) progressBar.style.width = progress + '%';
-    if (loadingText) loadingText.textContent = `Loading Map Data... ${progress}%`;
+    updateLoadingProgress(progress);
 };
 
 loadingManager.onError = function (url) {
     log(`Error loading: ${url}`);
-    if (loadingText) loadingText.textContent = 'Error loading map data!';
+    showError(`Failed to load resource: ${url}`);
+};
+
+// --- Loading UI Functions ---
+function showLoading(message = 'Loading...') {
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+    if (progressBar) progressBar.style.width = '0%';
+    if (loadingText) loadingText.textContent = message;
+    if (loadingError) loadingError.style.display = 'none';
+}
+
+function hideLoading() {
+    if (loadingOverlay) loadingOverlay.classList.add('hidden');
+}
+
+function updateLoadingProgress(percent, message = null) {
+    if (progressBar) progressBar.style.width = `${percent}%`;
+    if (message && loadingText) loadingText.textContent = message;
+}
+
+function showError(message) {
+    if (loadingText) loadingText.textContent = 'Error!';
     if (loadingError) {
-        loadingError.textContent = `Failed to load resource: ${url}. Please check the file path and network connection.`;
+        loadingError.textContent = message;
         loadingError.style.display = 'block';
     }
     if (loadingOverlay) loadingOverlay.classList.remove('hidden');
     if (progressBar) progressBar.style.width = '0%';
-};
+}
 
+function showWelcome() {
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+    if (progressBar) progressBar.style.width = '0%';
+    if (loadingText) loadingText.textContent = 'Select or upload a map to begin';
+    if (loadingError) loadingError.style.display = 'none';
+}
 
-// --- Initialization ---
-document.addEventListener('DOMContentLoaded', async () => { // Make this async
-    log("DOM content loaded. Initializing application...");
+function updateCurrentMapName(name) {
+    if (currentMapNameSpan) {
+        currentMapNameSpan.textContent = name ? `Current: ${name}` : 'No map loaded';
+    }
+}
 
-    loadingOverlay = document.getElementById('loading-overlay');
-    progressBar = document.getElementById('progress-bar');
-    loadingText = document.getElementById('loading-text');
-    loadingError = document.getElementById('loading-error');
+// --- Map Loading Functions ---
 
-    const mapContainer = document.getElementById('map-container');
-
-    if (!mapContainer) {
-        console.error("Fatal Error: Map container element not found.");
-        log("Error: #map-container not found in the DOM.");
-        document.body.innerHTML = '<div class="error-message">Error: Could not find the map container element (#map-container).</div>';
-        if(loadingOverlay) loadingOverlay.style.display = 'none';
-        return;
+/**
+ * Loads processed map data into the Three.js scene.
+ * @param {object} processedData - Map data with {metadata, tiles} structure
+ * @param {string} [mapName] - Optional name to display
+ */
+async function loadMapIntoScene(processedData, mapName = 'Custom Map') {
+    if (!processedData || !processedData.tiles || !processedData.metadata) {
+        throw new Error("Invalid map data format (missing tiles or metadata).");
     }
 
-    loadingManager.itemStart(MAP_DATA_URL);
+    // Clear existing visualization if active
+    if (isVisualizationActive) {
+        clearCurrentVisualization();
+    }
+
+    log(`Loading map into scene: ${mapName}`);
+    currentMapData = processedData;
+
+    // Create the visualization
+    createMapVisualization(processedData);
+
+    // Start animation loop if not already running
+    if (!isVisualizationActive) {
+        startAnimationLoop();
+        isVisualizationActive = true;
+    }
+
+    updateCurrentMapName(mapName);
+    log(`Map "${mapName}" loaded successfully with ${processedData.tiles.length} tiles.`);
+
+    // Refresh legend
+    await setupLegend();
+}
+
+/**
+ * Clears the current visualization from the scene.
+ */
+function clearCurrentVisualization() {
+    log('Clearing current visualization...');
+
+    // Clear map elements
+    if (typeof clearMapVisualization === 'function') {
+        clearMapVisualization();
+    }
+
+    currentMapData = null;
+    updateCurrentMapName(null);
+    log('Visualization cleared.');
+}
+
+/**
+ * Resets the entire visualization state.
+ */
+function resetVisualization() {
+    clearCurrentVisualization();
+
+    // Reset UI elements
+    if (demoMapsSelect) demoMapsSelect.value = '';
+    if (mapUploadInput) mapUploadInput.value = '';
+
+    // Show welcome screen
+    showWelcome();
+    log('Visualization reset complete.');
+}
+
+/**
+ * Handles demo map selection from dropdown.
+ */
+async function handleDemoMapSelect(event) {
+    const mapFilename = event.target.value;
+    if (!mapFilename) return;
+
+    log(`Demo map selected: ${mapFilename}`);
+    showLoading(`Loading ${mapFilename}...`);
 
     try {
-        initScene(mapContainer);
-        initUIControls();
-        initInteraction();
+        updateLoadingProgress(10, 'Fetching map data...');
 
-        // Fetch and process map data first
-        const mapData = await fetchData(MAP_DATA_URL);
-        if (mapData) {
-            if (!mapData.tiles || !mapData.metadata) {
-                throw new Error("Invalid map data format received (missing tiles or metadata).");
-            }
-            log('Map data loaded successfully:', { tiles: mapData.tiles.length, metadata: mapData.metadata });
-            createMapVisualization(mapData);
-            startAnimationLoop();
-            log("Application initialized successfully.");
-            loadingManager.itemEnd(MAP_DATA_URL);
-        } else {
-            throw new Error("Map data processing failed (loader returned null).");
-        }
+        // Load the configuration
+        const config = await loadConfig();
+        updateLoadingProgress(30, 'Processing map data...');
 
-        // Now that map data is processed and other UI might be ready, setup legend
-        await setupLegend(); // Wait for legend content to be populated
-        setupLegendToggle(); // THEN set up the toggle logic
+        // Load and process the demo map
+        const processedData = await loadDemoMap(mapFilename, config);
+        updateLoadingProgress(80, 'Building visualization...');
 
-    } catch (error) { // Catch errors from fetchData or other init steps
-        log('Error during initialization or data loading:', error);
-        console.error('Initialization failed:', error);
-        loadingManager.itemError(MAP_DATA_URL); // Signal error to loading manager
-        if (loadingText) loadingText.textContent = 'Initialization Error!';
-        if (loadingError) {
-            loadingError.textContent = `Failed to load or process map data: ${error.message}`;
-            loadingError.style.display = 'block';
-        }
-        if (loadingOverlay) loadingOverlay.classList.remove('hidden'); // Keep overlay to show error
+        // Load into scene
+        await loadMapIntoScene(processedData, mapFilename);
+        updateLoadingProgress(100, 'Complete!');
+
+        // Hide loading after a brief delay
+        setTimeout(hideLoading, 300);
+
+    } catch (error) {
+        console.error('Error loading demo map:', error);
+        showError(`Failed to load demo map: ${error.message}`);
     }
-});
+}
 
+/**
+ * Handles file upload from the file input.
+ */
+async function handleFileUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    log(`File uploaded: ${file.name}`);
+    showLoading(`Processing ${file.name}...`);
+
+    try {
+        updateLoadingProgress(10, 'Reading file...');
+
+        // Load the configuration
+        const config = await loadConfig();
+        updateLoadingProgress(30, 'Parsing CSV data...');
+
+        // Process the uploaded file
+        const processedData = await loadUploadedMap(file, config);
+        updateLoadingProgress(80, 'Building visualization...');
+
+        // Clear demo map selection since we're using custom data
+        if (demoMapsSelect) demoMapsSelect.value = '';
+
+        // Load into scene
+        await loadMapIntoScene(processedData, file.name);
+        updateLoadingProgress(100, 'Complete!');
+
+        // Hide loading after a brief delay
+        setTimeout(hideLoading, 300);
+
+    } catch (error) {
+        console.error('Error processing uploaded file:', error);
+        showError(`Failed to process file: ${error.message}`);
+    }
+}
+
+/**
+ * Handles the reset visualization button click.
+ */
+function handleResetClick() {
+    resetVisualization();
+}
+
+// --- Legend Setup (copied from original main.js) ---
 
 /**
  * Populates the legend with dynamic content (terrain types and tiers).
- * Uses imported config data.
  */
-async function setupLegend() { // This is already async
-     const terrainLegend = document.getElementById('terrain-legend');
-     const tierLegend = document.getElementById('tier-legend');
+async function setupLegend() {
+    const terrainLegend = document.getElementById('terrain-legend');
+    const tierLegend = document.getElementById('tier-legend');
 
-     if (!terrainLegend || !tierLegend) {
-         log("Warning: Legend containers (terrain or tier) not found.");
-         return;
-     }
+    if (!terrainLegend || !tierLegend) {
+        log("Warning: Legend containers (terrain or tier) not found.");
+        return;
+    }
 
-     terrainLegend.innerHTML = '';
-     tierLegend.innerHTML = '';
+    terrainLegend.innerHTML = '';
+    tierLegend.innerHTML = '';
 
-     try {
-         const { terrainColors: importedTerrainColors, tierConfig: importedTierConfig } = await import('./config.js');
+    try {
+        const { terrainColors: importedTerrainColors, tierConfig: importedTierConfig } = await import('./config.js');
 
-         if (!importedTerrainColors) {
+        if (!importedTerrainColors) {
             throw new Error("Terrain colors not found in config module.");
-         }
-         if (!importedTierConfig || !importedTierConfig.tiers) {
+        }
+        if (!importedTierConfig || !importedTierConfig.tiers) {
             throw new Error("Tier config or tiers object not found in config module.");
-         }
+        }
 
-         Object.entries(importedTerrainColors).forEach(([terrain, color]) => {
-             const item = document.createElement('div');
-             item.className = 'legend-item';
-             const colorBox = document.createElement('div');
-             colorBox.className = 'legend-color';
-             colorBox.style.backgroundColor = typeof color === 'number' ? `#${color.toString(16).padStart(6, '0')}` : color;
-             const label = document.createElement('span');
-             label.textContent = formatTerrainName(terrain);
-             item.appendChild(colorBox);
-             item.appendChild(label);
-             terrainLegend.appendChild(item);
-         });
-         log("Terrain legend populated.");
+        Object.entries(importedTerrainColors).forEach(([terrain, color]) => {
+            const item = document.createElement('div');
+            item.className = 'legend-item';
+            const colorBox = document.createElement('div');
+            colorBox.className = 'legend-color';
+            colorBox.style.backgroundColor = typeof color === 'number' ? `#${color.toString(16).padStart(6, '0')}` : color;
+            const label = document.createElement('span');
+            label.textContent = formatTerrainName(terrain);
+            item.appendChild(colorBox);
+            item.appendChild(label);
+            terrainLegend.appendChild(item);
+        });
+        log("Terrain legend populated.");
 
-         Object.entries(importedTierConfig.tiers).forEach(([tier, tierData]) => {
-             const item = document.createElement('div');
-             item.className = 'legend-item';
-             const tierSymbol = document.createElement('div');
-             tierSymbol.className = `tier-symbol tier-${tier}`;
-             tierSymbol.textContent = tier;
-             const label = document.createElement('span');
-             const minScore = tierData.min ?? '-∞';
-             const maxScore = tierData.max ?? '∞';
-             label.textContent = `(Score ${minScore} to ${maxScore})`;
-             label.title = `Tier ${tier}: Minimum Score ${minScore}, Maximum Score ${maxScore}`;
-             item.appendChild(tierSymbol);
-             item.appendChild(label);
-             tierLegend.appendChild(item);
-         });
-         log("Tier legend populated.");
+        Object.entries(importedTierConfig.tiers).forEach(([tier, tierData]) => {
+            const item = document.createElement('div');
+            item.className = 'legend-item';
+            const tierSymbol = document.createElement('div');
+            tierSymbol.className = `tier-symbol tier-${tier}`;
+            tierSymbol.textContent = tier;
+            const label = document.createElement('span');
+            const minScore = tierData.min ?? '-\u221E';
+            const maxScore = tierData.max ?? '\u221E';
+            label.textContent = `(Score ${minScore} to ${maxScore})`;
+            label.title = `Tier ${tier}: Minimum Score ${minScore}, Maximum Score ${maxScore}`;
+            item.appendChild(tierSymbol);
+            item.appendChild(label);
+            tierLegend.appendChild(item);
+        });
+        log("Tier legend populated.");
 
-     } catch (error) {
-         log("Error populating legend:", error);
-         console.error("Failed to setup legend:", error);
-         if (terrainLegend) terrainLegend.innerHTML = '<p style="color: red; font-size: 11px;">Error loading terrain legend.</p>';
-         if (tierLegend) tierLegend.innerHTML = '<p style="color: red; font-size: 11px;">Error loading tier legend.</p>';
-     }
+    } catch (error) {
+        log("Error populating legend:", error);
+        console.error("Failed to setup legend:", error);
+        if (terrainLegend) terrainLegend.innerHTML = '<p style="color: red; font-size: 11px;">Error loading terrain legend.</p>';
+        if (tierLegend) tierLegend.innerHTML = '<p style="color: red; font-size: 11px;">Error loading tier legend.</p>';
+    }
 }
 
-// --- UPDATED: Function to handle Legend Hide/Show ---
+// --- Legend Toggle (copied from original main.js) ---
+
 function setupLegendToggle() {
     const legend = document.querySelector('.legend');
     const legendToggle = document.getElementById('legend-toggle');
@@ -191,91 +312,66 @@ function setupLegendToggle() {
     const legendContent = document.querySelector('.legend .legend-content');
 
     if (!legend || !legendToggle || !showLegendButton || !legendContent) {
-        console.error("Legend toggle elements not found! Could not initialize. Check IDs and classes.");
-        log("Error: Legend toggle elements not found (legend, legend-toggle, show-legend-button, .legend-content).");
+        console.error("Legend toggle elements not found!");
+        log("Error: Legend toggle elements not found.");
         return;
     }
 
-    let calculatedScrollHeight = 0; // To store the actual height of the legend content
+    let calculatedScrollHeight = 0;
 
     const showLegendAction = () => {
-        legend.classList.remove('hidden'); // Make the main legend container visible
-        showLegendButton.classList.remove('visible'); // Hide the "Show Legend" button
+        legend.classList.remove('hidden');
+        showLegendButton.classList.remove('visible');
         legendToggle.textContent = 'Hide';
 
-        // If scrollHeight hasn't been calculated yet, or if it was 0 (e.g. content not ready on first try)
         if (calculatedScrollHeight === 0) {
-            // Temporarily remove transition and max-height to measure the true scrollHeight
             const originalTransition = legendContent.style.transition;
             legendContent.style.transition = 'none';
-            legendContent.style.maxHeight = 'none'; // Allow content to take its full height
+            legendContent.style.maxHeight = 'none';
 
-            // Force reflow to get correct measurement
-            // Reading offsetHeight is a common way to trigger this.
-            // Using requestAnimationFrame ensures styles are applied before measurement.
             requestAnimationFrame(() => {
                 calculatedScrollHeight = legendContent.scrollHeight;
-
-                // Immediately set maxHeight to 0px (without transition) to prepare for animation
                 legendContent.style.maxHeight = '0px';
+                legendContent.style.transition = originalTransition;
 
-                // Restore transition
-                legendContent.style.transition = originalTransition; // Or set to 'max-height 0.3s ease-in-out'
-
-                if (calculatedScrollHeight > 0) {
-                    log(`Legend content scrollHeight calculated: ${calculatedScrollHeight}px`);
-                } else {
-                    // Fallback if scrollHeight is still 0 (e.g., content is genuinely empty or still not rendered)
-                    calculatedScrollHeight = 500; // Default fallback height
-                    log("Warning: legendContent.scrollHeight was 0. Using fallback height: " + calculatedScrollHeight + "px");
+                if (calculatedScrollHeight <= 0) {
+                    calculatedScrollHeight = 500;
+                    log("Warning: legendContent.scrollHeight was 0. Using fallback height.");
                 }
 
-                // Use another requestAnimationFrame to apply the target maxHeight, triggering the animation
                 requestAnimationFrame(() => {
                     legendContent.style.maxHeight = calculatedScrollHeight + 'px';
                 });
             });
         } else {
-            // If scrollHeight is already known, just animate to it
             requestAnimationFrame(() => {
                 legendContent.style.maxHeight = calculatedScrollHeight + 'px';
             });
-            log("Legend shown (using cached scrollHeight), max-height set for content: " + calculatedScrollHeight + "px");
         }
     };
 
     const hideLegendAction = () => {
-        legendContent.style.maxHeight = '0px'; // Start the collapse animation
-        log("Legend collapsing, max-height set to 0 for content.");
-        legendToggle.textContent = 'Show'; // Change toggle text immediately
+        legendContent.style.maxHeight = '0px';
+        legendToggle.textContent = 'Show';
 
-        // Function to run when the collapse transition ends
         const onCollapseEnd = (event) => {
-            // Ensure the event is for max-height and from the legendContent itself
             if (event.target === legendContent && event.propertyName === 'max-height') {
-                legend.classList.add('hidden'); // Hide the main legend container
-                showLegendButton.classList.add('visible'); // Show the "Show Legend" button
-                legendContent.removeEventListener('transitionend', onCollapseEnd); // Clean up listener
-                log("Legend fully hidden after transition.");
+                legend.classList.add('hidden');
+                showLegendButton.classList.add('visible');
+                legendContent.removeEventListener('transitionend', onCollapseEnd);
             }
         };
         legendContent.addEventListener('transitionend', onCollapseEnd);
 
-        // Fallback: If transitionend doesn't fire (e.g., no transition, or display:none interrupts)
-        // This timeout should be slightly longer than the CSS transition duration.
         setTimeout(() => {
             if (legendContent.style.maxHeight === '0px' && !legend.classList.contains('hidden')) {
-                log("Legend hide fallback: transitionend didn't fire or was too slow. Forcing hide.");
                 legend.classList.add('hidden');
                 showLegendButton.classList.add('visible');
-                if (legendContent.removeEventListener) { // Check if still exists
-                    legendContent.removeEventListener('transitionend', onCollapseEnd);
-                }
+                legendContent.removeEventListener('transitionend', onCollapseEnd);
             }
-        }, 350); // CSS transition is 0.3s (300ms)
+        }, 350);
     };
 
-    // Attach event listeners
     legendToggle.addEventListener('click', () => {
         if (legend.classList.contains('hidden')) {
             showLegendAction();
@@ -288,45 +384,106 @@ function setupLegendToggle() {
         showLegendAction();
     });
 
-    // Initial state: Legend is hidden, content is collapsed.
-    legend.classList.add('hidden'); // Hide the main legend box
-    showLegendButton.classList.add('visible'); // Show the "Show Legend" button
+    // Initial state: Legend is hidden
+    legend.classList.add('hidden');
+    showLegendButton.classList.add('visible');
     legendToggle.textContent = 'Show';
-    legendContent.style.maxHeight = '0px'; // Ensure it's collapsed by default
-    log("Legend toggle initialized. Legend hidden by default, content max-height set to 0.");
+    legendContent.style.maxHeight = '0px';
+    log("Legend toggle initialized.");
 }
-// --------------------------------------------------------------------
 
+// --- Initialization ---
 
-// Add basic error handling for module loading itself
-window.addEventListener('error', function (event) {
-  if (event.message.includes('Failed to fetch dynamically imported module') ||
-      event.message.includes('Error loading script') ||
-      event.message.includes('SyntaxError') ||
-      event.filename?.includes('/modules/')) {
+document.addEventListener('DOMContentLoaded', async () => {
+    log("DOM content loaded. Initializing application...");
 
-    console.error('Module Loading/Execution Error:', event.message, event.filename, event.lineno);
-    log(`Critical Error: Failed to load/execute script module: ${event.filename || event.message}. Check paths, syntax, and server configuration.`);
+    // Cache DOM elements
+    loadingOverlay = document.getElementById('loading-overlay');
+    progressBar = document.getElementById('progress-bar');
+    loadingText = document.getElementById('loading-text');
+    loadingError = document.getElementById('loading-error');
+    mapUploadInput = document.getElementById('map-upload');
+    demoMapsSelect = document.getElementById('demo-maps');
+    resetButton = document.getElementById('reset-visualization');
+    currentMapNameSpan = document.getElementById('current-map-name');
 
-    const existingError = document.getElementById('critical-error-overlay');
-    if (!existingError && document.body) {
-        const errorDiv = document.createElement('div');
-        errorDiv.id = 'critical-error-overlay';
-        errorDiv.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(200, 0, 0, 0.85); color: white;
-            z-index: 2000; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; text-align: center;
-            padding: 20px; font-family: Arial, sans-serif;
-        `;
-        errorDiv.innerHTML = `
-            <h2 style="margin-bottom: 15px;">Application Error</h2>
-            <p>Failed to load or run essential scripts.</p>
-            <p>Please check the browser's developer console (F12) for details.</p>
-            <p style="font-size: 0.8em; margin-top: 10px; font-family: monospace; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 3px;">(${event.message})</p>
-        `;
-        document.body.appendChild(errorDiv);
-        if(loadingOverlay) loadingOverlay.style.display = 'none';
+    const mapContainer = document.getElementById('map-container');
+
+    if (!mapContainer) {
+        console.error("Fatal Error: Map container element not found.");
+        log("Error: #map-container not found in the DOM.");
+        document.body.innerHTML = '<div class="error-message">Error: Could not find the map container element (#map-container).</div>';
+        return;
     }
-  }
+
+    try {
+        // Initialize Three.js scene
+        initScene(mapContainer);
+        initUIControls();
+        initInteraction();
+
+        // Set up event listeners for data management controls
+        if (demoMapsSelect) {
+            demoMapsSelect.addEventListener('change', handleDemoMapSelect);
+        }
+
+        if (mapUploadInput) {
+            mapUploadInput.addEventListener('change', handleFileUpload);
+        }
+
+        if (resetButton) {
+            resetButton.addEventListener('click', handleResetClick);
+        }
+
+        // Show welcome screen (no auto-loading of map data)
+        showWelcome();
+
+        // Set up legend
+        await setupLegend();
+        setupLegendToggle();
+
+        log("Application initialized successfully. Waiting for user to load a map.");
+
+    } catch (error) {
+        log('Error during initialization:', error);
+        console.error('Initialization failed:', error);
+        showError(`Initialization failed: ${error.message}`);
+    }
 });
+
+// --- Error Handling ---
+
+window.addEventListener('error', function (event) {
+    if (event.message.includes('Failed to fetch dynamically imported module') ||
+        event.message.includes('Error loading script') ||
+        event.message.includes('SyntaxError') ||
+        event.filename?.includes('/modules/')) {
+
+        console.error('Module Loading/Execution Error:', event.message, event.filename, event.lineno);
+        log(`Critical Error: Failed to load/execute script module: ${event.filename || event.message}`);
+
+        const existingError = document.getElementById('critical-error-overlay');
+        if (!existingError && document.body) {
+            const errorDiv = document.createElement('div');
+            errorDiv.id = 'critical-error-overlay';
+            errorDiv.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background-color: rgba(200, 0, 0, 0.85); color: white;
+                z-index: 2000; display: flex; flex-direction: column;
+                justify-content: center; align-items: center; text-align: center;
+                padding: 20px; font-family: Arial, sans-serif;
+            `;
+            errorDiv.innerHTML = `
+                <h2 style="margin-bottom: 15px;">Application Error</h2>
+                <p>Failed to load or run essential scripts.</p>
+                <p>Please check the browser's developer console (F12) for details.</p>
+                <p style="font-size: 0.8em; margin-top: 10px; font-family: monospace; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 3px;">(${event.message})</p>
+            `;
+            document.body.appendChild(errorDiv);
+            if (loadingOverlay) loadingOverlay.style.display = 'none';
+        }
+    }
+});
+
+// --- Export for external access if needed ---
+export { currentMapData, loadMapIntoScene, resetVisualization };
