@@ -4,7 +4,7 @@ A web-based visualization and optimization tool for Civilization VI maps that he
 
 ## Live Demo
 
-**[Try it now](https://civ6-optimizer.vercel.app)** - No installation required!
+**[Try it now](https://civ6optimizer.vercel.app/)** - No installation required!
 
 ## Project Overview
 
